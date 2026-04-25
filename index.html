@@ -1,0 +1,2641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GHOST // TRAINING TERMINAL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
+<style>
+  :root {
+    --bg:         #000000;
+    --bg-panel:   #0a0a0a;
+    --bg-card:    #0d0d0d;
+    --border:     #1a1a1a;
+    --border-hi:  #262626;
+    --amber:      #e8a020;
+    --amber-dim:  #8a5e13;
+    --teal:       #3cb8c0;
+    --green:      #3ab86e;
+    --blue:       #4b8ef5;
+    --purple:     #a06ef0;
+    --red:        #ef4444;
+    --text:       #e8a020;
+    --text-dim:   #6a6a6a;
+    --text-label: #4a4a4a;
+    --mono: 'DM Mono', Menlo, Monaco, 'Courier New', monospace;
+    --sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    overflow: hidden;
+  }
+  body {
+    display: grid;
+    grid-template-rows: 40px 28px 1fr 44px 24px;
+    grid-template-columns: 1fr;
+    height: 100vh;
+  }
+
+  /* ─── HEADER ─────────────────────────────────────────── */
+  .status-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--sans);
+    font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase;
+  }
+  .brand { color: var(--amber); font-weight: 500; letter-spacing: 1.2px; }
+  .brand-sep { color: var(--text-label); margin: 0 4px; }
+
+  /* ─── CROSS-TERMINAL NAV ──────────────────────────────────────── */
+  .nav-pills {
+    display: flex; gap: 6px; align-items: center;
+    margin-left: 16px;
+  }
+  .nav-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border: 1px solid var(--border-hi);
+    color: var(--text-dim);
+    font-size: 10px; letter-spacing: 1px;
+    font-family: var(--sans);
+    text-decoration: none;
+    border-radius: 2px;
+    transition: border-color 120ms ease, color 120ms ease;
+  }
+  .nav-pill:hover { border-color: var(--amber-dim); color: var(--amber); }
+  .nav-pill.active {
+    border-color: var(--amber);
+    color: var(--amber);
+    background: rgba(232, 160, 32, 0.07);
+  }
+  .header-left { display: flex; align-items: center; min-width: 0; }
+  .indicators { display: flex; gap: 22px; align-items: center; }
+  .stat { display: flex; align-items: center; gap: 6px; }
+  .stat-label { color: var(--text-label); }
+  .stat-value { color: var(--amber); font-variant-numeric: tabular-nums; }
+  .stat-value.green { color: var(--green); }
+  .stat-value.amber { color: var(--amber); }
+  .stat-value.red   { color: var(--red); }
+  .dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green); box-shadow: 0 0 6px var(--green);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .dot.loading { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+  .dot.failed  { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.35; }
+  }
+
+  /* ─── TICKER TAPE ────────────────────────────────────── */
+  .ticker {
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+    position: relative;
+    font-family: var(--mono);
+  }
+  .ticker-track {
+    display: flex; white-space: nowrap;
+    animation: ticker-scroll 90s linear infinite;
+    line-height: 28px;
+    font-size: 11px; letter-spacing: 0.5px;
+    will-change: transform;
+    /* iOS Safari needs 3D transform to allocate a GPU layer; otherwise
+       the animation silently pauses on some layout conditions. */
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+  .ticker-item {
+    padding: 0 24px;
+    color: var(--text-dim);
+    border-right: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .ticker-item .sym { color: var(--amber); margin-right: 8px; font-weight: 500; }
+  .ticker-item.up   .val { color: var(--green); }
+  .ticker-item.down .val { color: var(--red); }
+  .ticker-item.event .val { color: var(--amber); }
+  @keyframes ticker-scroll {
+    0%   { transform: translate3d(0, 0, 0); }
+    100% { transform: translate3d(-50%, 0, 0); }
+  }
+
+  /* ─── MAIN GRID ──────────────────────────────────────── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 240px 1fr 300px;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* ─── SIDE RAILS ─────────────────────────────────────── */
+  .side-rail {
+    background: var(--bg-panel);
+    padding: 12px 14px;
+    overflow-y: auto;
+    font-family: var(--sans);
+    font-size: 11px;
+  }
+  .side-rail.left  { border-right: 1px solid var(--border); }
+  .side-rail.right { border-left:  1px solid var(--border); }
+
+  .side-rail::-webkit-scrollbar { width: 6px; }
+  .side-rail::-webkit-scrollbar-track { background: var(--bg-panel); }
+  .side-rail::-webkit-scrollbar-thumb { background: var(--amber-dim); }
+
+  .rail-label {
+    color: var(--text-label);
+    font-size: 10px;
+    letter-spacing: 1.3px;
+    text-transform: uppercase;
+    margin: 14px 0 6px 0;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+  }
+  .rail-label:first-child { margin-top: 0; }
+
+  .track-block { margin-bottom: 14px; }
+  .track-header {
+    color: var(--amber);
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+    font-family: var(--mono);
+  }
+  .track-header.active::before { content: '▸ '; color: var(--amber); }
+
+  .tier-row {
+    display: flex; align-items: center;
+    gap: 7px; padding: 4px 0;
+    font-size: 11px; font-family: var(--mono);
+  }
+  .tier-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 4px currentColor;
+  }
+  .tier-dot.introductory { background: var(--amber);  color: var(--amber); }
+  .tier-dot.amateur      { background: var(--teal);   color: var(--teal); }
+  .tier-dot.intermediate { background: var(--green);  color: var(--green); }
+  .tier-dot.experienced  { background: var(--blue);   color: var(--blue); }
+  .tier-dot.master       { background: var(--purple); color: var(--purple); }
+  .tier-dot.locked       { background: #2a2a2a; color: transparent; box-shadow: none; }
+  .tier-label { flex: 1; color: var(--text-dim); }
+  .tier-label.active { color: var(--amber); font-weight: 500; }
+  .tier-label.done   { color: var(--green); }
+  .tier-label.locked { color: var(--text-label); }
+  .tier-count {
+    color: var(--text-label);
+    font-variant-numeric: tabular-nums;
+    min-width: 34px; text-align: right;
+    font-size: 10px;
+  }
+  .tier-count.done   { color: var(--green); }
+  .tier-count.active { color: var(--amber); }
+  .progress-bar {
+    height: 2px; background: #1a1a1a;
+    margin: 2px 0 4px 13px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%; background: var(--amber);
+    transition: width 0.4s ease;
+  }
+
+  .kpi-row {
+    display: flex; justify-content: space-between;
+    padding: 4px 0;
+    font-family: var(--mono); font-size: 11px;
+  }
+  .kpi-label { color: var(--text-label); text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px; }
+  .kpi-value { color: var(--amber); font-variant-numeric: tabular-nums; }
+  .kpi-value.green { color: var(--green); }
+
+  /* ─── RIGHT RAIL — QUESTION CARD ─────────────────────── */
+  .q-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 10px;
+    margin-bottom: 10px;
+    font-family: var(--mono); font-size: 11px;
+  }
+  .q-tag {
+    display: inline-block;
+    color: var(--text-label);
+    font-size: 9px;
+    letter-spacing: 1.2px;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .q-tag .tier-pill {
+    display: inline-block;
+    padding: 1px 6px;
+    border: 1px solid currentColor;
+    margin-right: 6px;
+    border-radius: 2px;
+    font-size: 9px;
+  }
+  .q-tag.introductory .tier-pill { color: var(--amber); }
+  .q-tag.amateur      .tier-pill { color: var(--teal); }
+  .q-tag.intermediate .tier-pill { color: var(--green); }
+  .q-tag.experienced  .tier-pill { color: var(--blue); }
+  .q-tag.master       .tier-pill { color: var(--purple); }
+
+  .q-prompt {
+    color: var(--amber);
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .q-hint {
+    color: var(--text-dim);
+    font-size: 10px;
+    line-height: 1.45;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    font-style: italic;
+  }
+  .q-hint code {
+    font-family: var(--mono);
+    color: var(--amber);
+    font-style: normal;
+    background: rgba(232, 160, 32, 0.08);
+    padding: 0 4px;
+    border-radius: 2px;
+    font-size: 10px;
+  }
+  .q-empty {
+    color: var(--text-label);
+    font-size: 11px;
+    line-height: 1.5;
+    font-style: italic;
+  }
+
+  .schema-row {
+    font-family: var(--mono); font-size: 10px;
+    padding: 3px 0; color: var(--text-dim);
+  }
+  .schema-row .tbl { color: var(--amber); font-weight: 500; }
+
+  .activity-row {
+    display: flex; gap: 8px;
+    padding: 3px 0;
+    font-family: var(--mono); font-size: 10px;
+    color: var(--text-dim);
+  }
+  .activity-row .ts { color: var(--text-label); font-variant-numeric: tabular-nums; min-width: 38px; }
+  .activity-row .ico { width: 10px; text-align: center; flex-shrink: 0; }
+  .activity-row.correct   .ico { color: var(--green); }
+  .activity-row.incorrect .ico { color: var(--red); }
+  .activity-row.unlock    .ico { color: var(--amber); }
+  .activity-row.enter     .ico { color: var(--text-dim); }
+  .activity-row .msg { color: var(--text-dim); }
+  .activity-empty { color: var(--text-label); font-size: 10px; padding: 4px 0; font-style: italic; }
+
+  /* ─── TERMINAL ───────────────────────────────────────── */
+  .terminal-container {
+    padding: 10px 14px;
+    overflow: hidden;
+    background: var(--bg);
+    min-height: 0;
+  }
+  #terminal { height: 100%; width: 100%; }
+  .xterm-viewport::-webkit-scrollbar { width: 8px; }
+  .xterm-viewport::-webkit-scrollbar-track { background: var(--bg); }
+  .xterm-viewport::-webkit-scrollbar-thumb { background: var(--amber-dim); border-radius: 0; }
+
+  /* ─── ACTION BAR (Run / Submit / Hint buttons) ─────────────── */
+  .action-bar {
+    display: flex; align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    background: var(--bg-panel);
+    border-top: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+    overflow: hidden;
+  }
+  .action-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border-hi);
+    padding: 5px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+    outline: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .action-btn:hover:not(:disabled) {
+    border-color: var(--amber-dim);
+    color: var(--amber);
+  }
+  .action-btn:active:not(:disabled) {
+    background: rgba(232, 160, 32, 0.12);
+  }
+  .action-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .action-btn.run {
+    border-color: rgba(232, 160, 32, 0.5);
+    color: var(--amber);
+  }
+  .action-btn.run:hover:not(:disabled) {
+    border-color: var(--amber);
+    background: rgba(232, 160, 32, 0.08);
+  }
+  .action-btn.submit {
+    border-color: rgba(58, 184, 110, 0.5);
+    color: var(--green);
+  }
+  .action-btn.submit:hover:not(:disabled) {
+    border-color: var(--green);
+    background: rgba(58, 184, 110, 0.08);
+  }
+  .action-btn .kbd {
+    color: var(--text-label);
+    font-size: 9px;
+    margin-left: 4px;
+    letter-spacing: 0.4px;
+    text-transform: none;
+  }
+  .action-status {
+    flex: 1;
+    color: var(--text-label);
+    font-size: 10px;
+    letter-spacing: 0.3px;
+    text-align: right;
+    padding-left: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ─── FOOTER ─────────────────────────────────────────── */
+  .footer-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 16px; background: var(--bg-panel);
+    border-top: 1px solid var(--border);
+    font-family: var(--sans);
+    font-size: 10px; color: var(--text-label);
+    letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  .footer-bar .key { color: var(--text-label); }
+  .footer-bar .key b { color: var(--amber); font-weight: 500; }
+
+  /* ─── MOBILE ─────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    .main-grid { grid-template-columns: 1fr; }
+    .side-rail { display: none; }
+    .indicators { gap: 10px; font-size: 10px; }
+    .status-bar { padding: 0 10px; }
+    .brand { font-size: 10px; }
+    .nav-pills { display: none; }
+    .footer-bar .key { display: none; }
+  }
+  @media (max-width: 720px) {
+    .stat-label { display: none; }
+    .indicators { gap: 14px; }
+    .action-btn .kbd { display: none; }
+    .action-status { display: none; }
+  }
+  @media (max-width: 600px) {
+    .brand { font-size: 9px; letter-spacing: 0.8px; }
+    .brand-sep { margin: 0 2px; }
+    .indicators { gap: 10px; }
+    .stat { gap: 3px; }
+    .footer-bar { padding: 0 8px; font-size: 9px; }
+    .action-bar { padding: 0 8px; gap: 6px; }
+    .action-btn { padding: 5px 10px; font-size: 10px; }
+  }
+  @media (min-width: 901px) and (max-width: 1200px) {
+    .main-grid { grid-template-columns: 210px 1fr 260px; }
+    .nav-pill { padding: 3px 7px; font-size: 9px; letter-spacing: 0.6px; }
+    .nav-pills { margin-left: 10px; gap: 4px; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <div class="status-bar">
+    <div class="header-left">
+      <div class="brand">GHOST<span class="brand-sep">//</span>TRAINING TERMINAL</div>
+      <nav class="nav-pills" id="nav-pills"></nav>
+    </div>
+    <div class="indicators">
+      <div class="stat"><span class="stat-label">TRACK</span><span class="stat-value" id="hdr-track">—</span></div>
+      <div class="stat"><span class="stat-label">RANK</span><span class="stat-value" id="hdr-rank">—</span></div>
+      <div class="stat"><span class="stat-label">PROGRESS</span><span class="stat-value" id="hdr-progress">—</span></div>
+      <div class="stat"><span class="dot" id="hdr-dot"></span><span class="stat-value green" id="hdr-status">ONLINE</span></div>
+    </div>
+  </div>
+
+  <!-- TICKER -->
+  <div class="ticker">
+    <div class="ticker-track" id="ticker-track"></div>
+  </div>
+
+  <!-- MAIN GRID: LEFT RAIL | TERMINAL | RIGHT RAIL -->
+  <div class="main-grid">
+
+    <!-- LEFT RAIL -->
+    <aside class="side-rail left" id="left-rail">
+      <div class="rail-label">Watchlist</div>
+      <div id="tracks-container"></div>
+
+      <div class="rail-label">Session KPIs</div>
+      <div class="kpi-row"><span class="kpi-label">Total</span><span class="kpi-value" id="kpi-total">0/0</span></div>
+      <div class="kpi-row"><span class="kpi-label">Attempts</span><span class="kpi-value" id="kpi-attempts">0</span></div>
+      <div class="kpi-row"><span class="kpi-label">Accuracy</span><span class="kpi-value" id="kpi-accuracy">—</span></div>
+      <div class="kpi-row"><span class="kpi-label">Streak</span><span class="kpi-value green" id="kpi-streak">0</span></div>
+      <div class="kpi-row"><span class="kpi-label">Session</span><span class="kpi-value" id="kpi-session">00:00</span></div>
+    </aside>
+
+    <!-- TERMINAL -->
+    <main class="terminal-container">
+      <div id="terminal"></div>
+    </main>
+
+    <!-- RIGHT RAIL -->
+    <aside class="side-rail right" id="right-rail">
+      <div class="rail-label">Active Question</div>
+      <div id="active-question">
+        <div class="q-card">
+          <div class="q-empty">No track engaged. Type <code>start python</code> or <code>start sql</code> to begin.</div>
+        </div>
+      </div>
+
+      <div class="rail-label">SQL Schema</div>
+      <div id="schema-panel">
+        <div class="schema-row"><span class="tbl">customers</span></div>
+        <div class="schema-row">id, name, phone</div>
+        <div class="schema-row"><span class="tbl">mechanics</span></div>
+        <div class="schema-row">id, name, specialty</div>
+        <div class="schema-row"><span class="tbl">vehicles</span></div>
+        <div class="schema-row">id, customer_id, make, model, year</div>
+        <div class="schema-row"><span class="tbl">work_orders</span></div>
+        <div class="schema-row">id, vehicle_id, mechanic_id, status, total_cost</div>
+      </div>
+
+      <div class="rail-label">Activity</div>
+      <div id="activity-panel">
+        <div class="activity-empty">No activity yet.</div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- ACTION BAR (Run / Submit / Hint buttons) -->
+  <div class="action-bar" id="action-bar">
+    <button type="button" class="action-btn run" id="btn-run" disabled
+            onmousedown="event.preventDefault()">
+      ▶ RUN<span class="kbd">Ctrl+Enter</span>
+    </button>
+    <button type="button" class="action-btn submit" id="btn-submit" disabled
+            onmousedown="event.preventDefault()">
+      ✓ SUBMIT<span class="kbd">Ctrl+Shift+Enter</span>
+    </button>
+    <button type="button" class="action-btn" id="btn-hint" disabled
+            onmousedown="event.preventDefault()">
+      💡 HINT
+    </button>
+    <span class="action-status" id="action-status">Start a track to enable Run / Submit.</span>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer-bar">
+    <span>GHOST STRATEGIES LLC</span>
+    <span class="key" id="footer-engines">engines: booting</span>
+    <span class="key"><b>TAB</b> indent/complete · <b>↑↓</b> history · <b>^C</b> abort</span>
+    <span id="footer-clock">— —</span>
+    <span>v3.7</span>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+
+  <script>
+  /* ============================================================
+     CONSTANTS
+     ============================================================ */
+  const STATE_VERSION = 3;
+  const GATE_SIZE     = 10;
+  const TIER_ORDER    = ['introductory', 'amateur', 'intermediate', 'experienced', 'master'];
+  const TIER_LABELS   = {
+    introductory: 'Introductory',
+    amateur:      'Amateur',
+    intermediate: 'Intermediate',
+    experienced:  'Experienced',
+    master:       'Master',
+  };
+  const TIER_SHORT = {
+    introductory: 'Intro',
+    amateur:      'Amat',
+    intermediate: 'Inte',
+    experienced:  'Expe',
+    master:       'Mast',
+  };
+
+  const COMMANDS_IDLE = ['help','status','start','schema','clear','reset','export','import','exit'];
+
+  const PYODIDE_VERSION   = '0.26.4';
+  const PYODIDE_INDEX_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
+  const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                 (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const PYODIDE_TIMEOUT_MS = IS_IOS ? 90_000 : 60_000;
+
+  const MAX_ACTIVITY = 10;
+
+  /* ============================================================
+     CROSS-TERMINAL NAV
+     Replace these `#` placeholders with your actual deployed URLs
+     for the Garage / Economic / StockPulse terminals.
+     ============================================================ */
+  const PRODUCT_NAV = [
+    { key:'garage',    label:'GARAGE',    url:'https://garage-terminal.vercel.app', active:false },
+    { key:'economic', label:'ECONOMIC', url:'https://kaejhee.github.io/economic-terminal/', active:false },
+    { key:'stockpulse',    label:'STOCKPULSE',    url:'https://stockpulse-theta-nine.vercel.app/#/', active:false },
+    { key:'training',  label:'TRAINING',  url:'#', active:true  },
+  ];
+
+  /* ============================================================
+     SQL SEED
+     ============================================================ */
+  const SCHEMA_SQL = `
+    CREATE TABLE customers (id INTEGER PRIMARY KEY, name TEXT NOT NULL, phone TEXT);
+    CREATE TABLE mechanics (id INTEGER PRIMARY KEY, name TEXT NOT NULL, specialty TEXT NOT NULL);
+    CREATE TABLE vehicles (id INTEGER PRIMARY KEY, customer_id INTEGER REFERENCES customers(id),
+                           make TEXT NOT NULL, model TEXT NOT NULL, year INTEGER NOT NULL);
+    CREATE TABLE work_orders (id INTEGER PRIMARY KEY, vehicle_id INTEGER REFERENCES vehicles(id),
+                              mechanic_id INTEGER REFERENCES mechanics(id),
+                              status TEXT NOT NULL, total_cost REAL NOT NULL);
+  `;
+  const SEED_SQL = `
+    INSERT INTO customers VALUES
+      (1,'Kristopher Gallow','210-555-0101'),(2,'Alice Chen','512-555-0102'),
+      (3,'Marcus Okafor','210-555-0103'),(4,'Yuki Tanaka','415-555-0104'),
+      (5,'Sarah Petrov','210-555-0105'),(6,'David Reyes','512-555-0106'),
+      (7,'Jenna Hollis','210-555-0107'),(8,'Tom Bianchi','210-555-0108'),
+      (9,'Riley Evans',NULL),(10,'Pat Zhao',NULL);
+    INSERT INTO mechanics VALUES
+      (1,'Dave Kim','Engines'),(2,'Emily Ross','Transmission'),
+      (3,'Frank Castillo','Engines'),(4,'Grace Park','Brakes'),
+      (5,'Hiro Nakamura','Electrical'),(6,'Isabella Cruz','Suspension');
+    INSERT INTO vehicles VALUES
+      (1,1,'Nissan','Skyline R33 GT-R',1996),(2,1,'Nissan','GT-R R35',2020),
+      (3,2,'Toyota','Supra MK4',1998),(4,3,'Honda','NSX',1995),
+      (5,4,'Mazda','RX-7 FD3S',1993),(6,5,'Mitsubishi','Lancer Evo VI',1999),
+      (7,6,'Subaru','Impreza STI',2005),(8,7,'Nissan','Silvia S15',2000),
+      (9,8,'Toyota','AE86 Trueno',1985),(10,2,'Porsche','911 GT3 RS',2019),
+      (11,3,'Ferrari','458 Speciale',2014);
+    INSERT INTO work_orders VALUES
+      (1,1,1,'Open',3200.00),(2,2,4,'Completed',850.00),(3,3,1,'Completed',2100.00),
+      (4,4,3,'Open',4500.00),(5,5,5,'In Progress',1200.00),(6,6,1,'Completed',2800.00),
+      (7,7,2,'Completed',3400.00),(8,8,6,'Open',1650.00),(9,9,1,'Completed',900.00),
+      (10,10,4,'Completed',1500.00),(11,11,3,'In Progress',5200.00),(12,1,4,'Completed',650.00),
+      (13,3,2,'Open',1800.00),(14,5,1,'Completed',2400.00),(15,6,6,'Completed',1100.00);
+  `;
+
+  /* ============================================================
+     QUESTION BANK
+     ============================================================ */
+  const QUESTIONS = {
+    python: {
+      introductory: [
+        { id:'py_intro_01', prompt:"Define a variable garage_name and set it to 'Terminal Auto'.",
+          hint:"Use single or double quotes — both are valid in Python.",
+          fallback_expected:"garage_name = 'Terminal Auto'",
+          assertion:{ type:'binding', name:'garage_name', value:'Terminal Auto' } },
+        { id:'py_intro_02', prompt:"Create a list named mechanics with the values 'Kris', 'Alex', 'Sam'.",
+          hint:"Square brackets, commas between items.",
+          fallback_expected:"mechanics = ['Kris', 'Alex', 'Sam']",
+          assertion:{ type:'binding', name:'mechanics', value:['Kris','Alex','Sam'] } },
+        { id:'py_intro_03', prompt:"Print the string 'Shop open'.",
+          hint:"The built-in function is print().",
+          fallback_expected:"print('Shop open')",
+          assertion:{ type:'stdout', value:'Shop open' } },
+        { id:'py_intro_04', prompt:"Set a = 10 and b = 5, then assign total = a + b.",
+          fallback_expected:"a = 10\nb = 5\ntotal = a + b",
+          assertion:{ type:'binding', name:'total', value:15 } },
+        { id:'py_intro_05', prompt:"Write an if statement that prints 'High' when cost > 1000. Variable 'cost' is already defined.",
+          setup:"cost = 1500",
+          hint:"Indentation matters. Four spaces or a tab inside the if block.",
+          fallback_expected:"if cost > 1000:\n    print('High')",
+          assertion:{ type:'stdout', value:'High' } },
+        { id:'py_intro_06', prompt:"Create a dict named customer with keys 'id': 1 and 'name': 'Alice'.",
+          fallback_expected:"customer = {'id': 1, 'name': 'Alice'}",
+          assertion:{ type:'binding', name:'customer', value:{ id:1, name:'Alice' } } },
+        { id:'py_intro_07', prompt:"Assign the string 'Work Order #123' to a variable label by concatenating 'Work Order #' with '123'.",
+          hint:"Use the + operator between strings.",
+          fallback_expected:"label = 'Work Order #' + '123'",
+          assertion:{ type:'binding', name:'label', value:'Work Order #123' } },
+        { id:'py_intro_08', prompt:"Given vehicles = [1,2,3,4], assign its length to a variable named count.",
+          setup:"vehicles = [1, 2, 3, 4]",
+          hint:"len() returns the length of a sequence.",
+          fallback_expected:"count = len(vehicles)",
+          assertion:{ type:'binding', name:'count', value:4 } },
+        { id:'py_intro_09', prompt:"Convert the string '2024' to an integer and store it in a variable named year.",
+          hint:"int() parses a string to an integer.",
+          fallback_expected:"year = int('2024')",
+          assertion:{ type:'binding', name:'year', value:2024 } },
+        { id:'py_intro_10', prompt:"Set a boolean variable is_open to True.",
+          fallback_expected:"is_open = True",
+          assertion:{ type:'binding', name:'is_open', value:true } },
+      ],
+      amateur: [
+        { id:'py_am_01', prompt:"Given mechanics = ['Kris','Alex','Sam'], use a for loop to print each mechanic on a separate line.",
+          setup:"mechanics = ['Kris', 'Alex', 'Sam']",
+          hint:"for item in list: print(item)",
+          fallback_expected:"for m in mechanics:\n    print(m)",
+          assertion:{ type:'stdout', value:'Kris\nAlex\nSam' } },
+        { id:'py_am_02', prompt:"Define a function add_two(x, y) that returns x + y. It will be tested with add_two(3, 5).",
+          fallback_expected:"def add_two(x, y):\n    return x + y",
+          assertion:{ type:'call', call:'add_two(3, 5)', expected:8 } },
+        { id:'py_am_03', prompt:"Unpack a 2-tuple: assign 'Nissan' and 1996 to variables 'make' and 'year' in one line.",
+          hint:"make, year = 'Nissan', 1996",
+          fallback_expected:"make, year = 'Nissan', 1996",
+          assertion:{ type:'expression', expression:'[make, year]', expected:['Nissan', 1996] } },
+        { id:'py_am_04', prompt:"Use a while loop to append numbers 1 through 5 into a list named 'nums'.",
+          hint:"Start with nums = [] and a counter at 1.",
+          fallback_expected:"nums = []\ni = 1\nwhile i <= 5:\n    nums.append(i)\n    i += 1",
+          assertion:{ type:'binding', name:'nums', value:[1,2,3,4,5] } },
+        { id:'py_am_05', prompt:"Define greet(name) returning f-string 'Hello, <name>'. Tested with greet('Kris').",
+          fallback_expected:"def greet(name):\n    return f'Hello, {name}'",
+          assertion:{ type:'call', call:"greet('Kris')", expected:'Hello, Kris' } },
+        { id:'py_am_06', prompt:"Given nums = [10, 20, 30, 40], store the sum in a variable named 'total'.",
+          setup:"nums = [10, 20, 30, 40]",
+          hint:"The built-in sum() works on any iterable of numbers.",
+          fallback_expected:"total = sum(nums)",
+          assertion:{ type:'binding', name:'total', value:100 } },
+        { id:'py_am_07', prompt:"Given nums = [5, 2, 9, 1, 7], create a new list named 'desc' sorted high to low.",
+          setup:"nums = [5, 2, 9, 1, 7]",
+          hint:"sorted(..., reverse=True) returns a new list.",
+          fallback_expected:"desc = sorted(nums, reverse=True)",
+          assertion:{ type:'binding', name:'desc', value:[9,7,5,2,1] } },
+        { id:'py_am_08', prompt:"Given statuses = ['Open','Closed','Open','Open','Closed'], count how many times 'Open' appears. Store in 'open_count'.",
+          setup:"statuses = ['Open','Closed','Open','Open','Closed']",
+          hint:"Lists have a .count() method.",
+          fallback_expected:"open_count = statuses.count('Open')",
+          assertion:{ type:'binding', name:'open_count', value:3 } },
+        { id:'py_am_09', prompt:"Given csv = 'Nissan,GT-R,2020', split it on commas into a list named 'parts'.",
+          setup:"csv = 'Nissan,GT-R,2020'",
+          hint:"str.split(',') returns a list of substrings.",
+          fallback_expected:"parts = csv.split(',')",
+          assertion:{ type:'binding', name:'parts', value:['Nissan','GT-R','2020'] } },
+        { id:'py_am_10', prompt:"Given names = ['Alice','Bob'] and ages = [30, 25], zip them into a list named 'pairs' of (name, age) tuples.",
+          setup:"names = ['Alice','Bob']\nages = [30, 25]",
+          hint:"list(zip(a, b)) pairs two iterables.",
+          fallback_expected:"pairs = list(zip(names, ages))",
+          assertion:{ type:'binding', name:'pairs', value:[['Alice',30],['Bob',25]] } },
+      ],
+      intermediate: [
+        { id:'py_int_01', prompt:"Given prices = [100, 600, 250, 800, 450], build list 'high' with prices > 500 via list comprehension.",
+          setup:"prices = [100, 600, 250, 800, 450]",
+          fallback_expected:"high = [p for p in prices if p > 500]",
+          assertion:{ type:'binding', name:'high', value:[600, 800] } },
+        { id:'py_int_02', prompt:"Build dict 'squares' mapping 1..5 to their squares via dict comprehension.",
+          hint:"{x: x**2 for x in range(1, 6)}",
+          fallback_expected:"squares = {x: x**2 for x in range(1, 6)}",
+          assertion:{ type:'binding', name:'squares', value:{1:1,2:4,3:9,4:16,5:25} } },
+        { id:'py_int_03', prompt:"Define total_with_tax(amount, rate=0.08) returning amount * (1 + rate). Test: total_with_tax(100).",
+          fallback_expected:"def total_with_tax(amount, rate=0.08):\n    return amount * (1 + rate)",
+          assertion:{ type:'call', call:'total_with_tax(100)', expected:108 } },
+        { id:'py_int_04', prompt:"Given orders with 'total_cost' keys, compute the sum into 'grand_total'.",
+          setup:"orders = [{'total_cost': 100}, {'total_cost': 250}, {'total_cost': 75}]",
+          fallback_expected:"grand_total = sum(o['total_cost'] for o in orders)",
+          assertion:{ type:'binding', name:'grand_total', value:425 } },
+        { id:'py_int_05', prompt:"Given nums = [1,2,3,4,5,6,7,8], filter to evens via filter() + lambda into list named 'evens'.",
+          setup:"nums = [1,2,3,4,5,6,7,8]",
+          hint:"list(filter(lambda x: x % 2 == 0, nums))",
+          fallback_expected:"evens = list(filter(lambda x: x % 2 == 0, nums))",
+          assertion:{ type:'binding', name:'evens', value:[2,4,6,8] } },
+        { id:'py_int_06', prompt:"Given nums = [1,2,3,4], build 'doubled' by applying map() with a lambda that multiplies by 2.",
+          setup:"nums = [1,2,3,4]",
+          hint:"list(map(lambda x: x * 2, nums))",
+          fallback_expected:"doubled = list(map(lambda x: x * 2, nums))",
+          assertion:{ type:'binding', name:'doubled', value:[2,4,6,8] } },
+        { id:'py_int_07', prompt:"Sort people by age ascending using sorted() with key=lambda. Store in 'by_age'.",
+          setup:"people = [{'name':'A','age':30},{'name':'B','age':22},{'name':'C','age':28}]",
+          hint:"sorted(people, key=lambda p: p['age'])",
+          fallback_expected:"by_age = sorted(people, key=lambda p: p['age'])",
+          assertion:{ type:'binding', name:'by_age',
+            value:[{name:'B',age:22},{name:'C',age:28},{name:'A',age:30}] } },
+        { id:'py_int_08', prompt:"Given d = {'a': 1, 'b': 2}, use dict.get() to safely fetch key 'c' with default 0 into variable 'value'.",
+          setup:"d = {'a': 1, 'b': 2}",
+          hint:"d.get(key, default)",
+          fallback_expected:"value = d.get('c', 0)",
+          assertion:{ type:'binding', name:'value', value:0 } },
+        { id:'py_int_09', prompt:"Given sets a = {1,2,3,4} and b = {3,4,5,6}, store their intersection as a sorted list named 'common'.",
+          setup:"a = {1,2,3,4}\nb = {3,4,5,6}",
+          hint:"a & b returns a set. Wrap in sorted() for a stable list.",
+          fallback_expected:"common = sorted(a & b)",
+          assertion:{ type:'binding', name:'common', value:[3,4] } },
+        { id:'py_int_10', prompt:"Build a formatted string: store 'Price: $1500.00' in variable 'msg' using f-string with :.2f. Given price = 1500.",
+          setup:"price = 1500",
+          hint:"f'Price: ${price:.2f}'",
+          fallback_expected:"msg = f'Price: ${price:.2f}'",
+          assertion:{ type:'binding', name:'msg', value:'Price: $1500.00' } },
+      ],
+      experienced: [
+        { id:'py_exp_01', prompt:"Define class WorkOrder with __init__(self, id, cost, status) and is_open(self) returning True when status == 'Open'.",
+          fallback_expected:"class WorkOrder:\n    def __init__(self, id, cost, status):\n        self.id = id\n        self.cost = cost\n        self.status = status\n    def is_open(self):\n        return self.status == 'Open'",
+          assertion:{ type:'expression', expression:"WorkOrder(1, 100, 'Open').is_open()", expected:true } },
+        { id:'py_exp_02', prompt:"Sum total_cost in orders where status == 'Open' using a generator expression. Store in 'open_total'.",
+          setup:"orders = [{'total_cost': 100, 'status': 'Open'}, {'total_cost': 250, 'status': 'Completed'}, {'total_cost': 75, 'status': 'Open'}]",
+          hint:"sum(o['total_cost'] for o in orders if o['status'] == 'Open')",
+          fallback_expected:"open_total = sum(o['total_cost'] for o in orders if o['status'] == 'Open')",
+          assertion:{ type:'binding', name:'open_total', value:175 } },
+        { id:'py_exp_03', prompt:"Define class SportsCar(Vehicle) inheriting from Vehicle. Add method is_fast(self) that always returns True. Vehicle class is pre-defined.",
+          setup:"class Vehicle:\n    def __init__(self, make):\n        self.make = make",
+          fallback_expected:"class SportsCar(Vehicle):\n    def is_fast(self):\n        return True",
+          assertion:{ type:'expression', expression:"SportsCar('Nissan').is_fast()", expected:true } },
+        { id:'py_exp_04', prompt:"Define safe_div(a, b) that returns a / b, or returns None if ZeroDivisionError is raised. Tested with safe_div(10, 0).",
+          hint:"try: ... except ZeroDivisionError: return None",
+          fallback_expected:"def safe_div(a, b):\n    try:\n        return a / b\n    except ZeroDivisionError:\n        return None",
+          assertion:{ type:'call', call:'safe_div(10, 0)', expected:null } },
+        { id:'py_exp_05', prompt:"Define class Mechanic with __init__(name) and __str__(self) returning 'Mechanic: <name>'. Tested with str(Mechanic('Dave')).",
+          fallback_expected:"class Mechanic:\n    def __init__(self, name):\n        self.name = name\n    def __str__(self):\n        return f'Mechanic: {self.name}'",
+          assertion:{ type:'expression', expression:"str(Mechanic('Dave'))", expected:'Mechanic: Dave' } },
+        { id:'py_exp_06', prompt:"Define class Order with __init__(self, cost) and a @property tax returning cost * 0.08.",
+          hint:"@property turns a method into an attribute.",
+          fallback_expected:"class Order:\n    def __init__(self, cost):\n        self.cost = cost\n    @property\n    def tax(self):\n        return self.cost * 0.08",
+          assertion:{ type:'expression', expression:"Order(100).tax", expected:8 } },
+        { id:'py_exp_07', prompt:"Define class MathKit with a @staticmethod add(x, y) returning x + y. Tested via MathKit.add(2, 3).",
+          fallback_expected:"class MathKit:\n    @staticmethod\n    def add(x, y):\n        return x + y",
+          assertion:{ type:'expression', expression:"MathKit.add(2, 3)", expected:5 } },
+        { id:'py_exp_08', prompt:"Given items = ['a','b','c'], use enumerate() to build list named 'indexed' with tuples (i, item) starting at index 0.",
+          setup:"items = ['a','b','c']",
+          hint:"list(enumerate(items))",
+          fallback_expected:"indexed = list(enumerate(items))",
+          assertion:{ type:'binding', name:'indexed', value:[[0,'a'],[1,'b'],[2,'c']] } },
+        { id:'py_exp_09', prompt:"Import Counter from collections and count occurrences in words = ['red','blue','red','green','blue','red']. Store the Counter in 'counts'.",
+          setup:"words = ['red','blue','red','green','blue','red']",
+          hint:"from collections import Counter; counts = Counter(words)",
+          fallback_expected:"from collections import Counter\ncounts = Counter(words)",
+          assertion:{ type:'expression', expression:"dict(counts)", expected:{red:3, blue:2, green:1} } },
+        { id:'py_exp_10', prompt:"Import defaultdict. Build 'groups' where each key in ['a','b','a','c','b','a'] maps to an integer count. Use defaultdict(int).",
+          setup:"keys = ['a','b','a','c','b','a']",
+          hint:"from collections import defaultdict; groups = defaultdict(int); for k in keys: groups[k] += 1",
+          fallback_expected:"from collections import defaultdict\ngroups = defaultdict(int)\nfor k in keys:\n    groups[k] += 1",
+          assertion:{ type:'expression', expression:"dict(groups)", expected:{a:3, b:2, c:1} } },
+      ],
+      master: [
+        { id:'py_mas_01', prompt:"Define rank_revenue(mechanics) — accepts list of dicts with name + revenue, returns new list sorted by revenue desc with 'rank' key (1-indexed).",
+          setup:"_mechanics = [{'name': 'Dave', 'revenue': 5000}, {'name': 'Emily', 'revenue': 8000}, {'name': 'Frank', 'revenue': 3000}]",
+          fallback_expected:"def rank_revenue(mechanics):\n    sorted_m = sorted(mechanics, key=lambda m: m['revenue'], reverse=True)\n    return [{**m, 'rank': i+1} for i, m in enumerate(sorted_m)]",
+          assertion:{ type:'expression', expression:"rank_revenue(_mechanics)",
+            expected:[{name:'Emily',revenue:8000,rank:1},{name:'Dave',revenue:5000,rank:2},{name:'Frank',revenue:3000,rank:3}] } },
+        { id:'py_mas_02', prompt:"Define factorial(n) recursively. factorial(0) should return 1. Tested with factorial(6).",
+          hint:"Base case n <= 1 returns 1; else n * factorial(n-1).",
+          fallback_expected:"def factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)",
+          assertion:{ type:'call', call:'factorial(6)', expected:720 } },
+        { id:'py_mas_03', prompt:"Define a generator count_up_to(n) that yields 1..n. Consume it into variable 'result' via list() for n=4.",
+          hint:"def count_up_to(n): for i in range(1, n+1): yield i",
+          fallback_expected:"def count_up_to(n):\n    for i in range(1, n + 1):\n        yield i\nresult = list(count_up_to(4))",
+          assertion:{ type:'binding', name:'result', value:[1,2,3,4] } },
+        { id:'py_mas_04', prompt:"Define decorator double that makes any function return 2x its result. Decorate def val(): return 21 so val() returns 42.",
+          hint:"def double(fn): def wrapper(*a, **kw): return fn(*a, **kw) * 2; return wrapper",
+          fallback_expected:"def double(fn):\n    def wrapper(*a, **kw):\n        return fn(*a, **kw) * 2\n    return wrapper\n@double\ndef val():\n    return 21",
+          assertion:{ type:'call', call:'val()', expected:42 } },
+        { id:'py_mas_05', prompt:"Using functools.reduce, sum nums = [1,2,3,4,5] into variable 'total' (no sum() allowed).",
+          setup:"nums = [1,2,3,4,5]",
+          hint:"from functools import reduce; reduce(lambda a,b: a+b, nums)",
+          fallback_expected:"from functools import reduce\ntotal = reduce(lambda a, b: a + b, nums)",
+          assertion:{ type:'binding', name:'total', value:15 } },
+        { id:'py_mas_06', prompt:"Define memo_sq(n) that caches squares in a module-level dict _cache. memo_sq(4) returns 16 and _cache[4] == 16.",
+          hint:"Check _cache first, else compute n*n and store.",
+          fallback_expected:"_cache = {}\ndef memo_sq(n):\n    if n in _cache:\n        return _cache[n]\n    _cache[n] = n * n\n    return _cache[n]",
+          assertion:{ type:'expression', expression:"[memo_sq(4), _cache.get(4)]", expected:[16, 16] } },
+        { id:'py_mas_07', prompt:"Define make_counter() returning an inner function using nonlocal. c = make_counter(); [c(), c(), c()] should be [1,2,3].",
+          hint:"nonlocal lets the inner function rebind the enclosing variable.",
+          fallback_expected:"def make_counter():\n    n = 0\n    def inner():\n        nonlocal n\n        n += 1\n        return n\n    return inner\nc = make_counter()",
+          assertion:{ type:'expression', expression:"[c(), c(), c()]", expected:[1,2,3] } },
+        { id:'py_mas_08', prompt:"Create a namedtuple Point with fields x, y. Instantiate p = Point(3, 4). Store [p.x, p.y] in list 'coords'.",
+          hint:"from collections import namedtuple; Point = namedtuple('Point', ['x','y'])",
+          fallback_expected:"from collections import namedtuple\nPoint = namedtuple('Point', ['x', 'y'])\np = Point(3, 4)\ncoords = [p.x, p.y]",
+          assertion:{ type:'binding', name:'coords', value:[3,4] } },
+        { id:'py_mas_09', prompt:"Using @dataclass, define Car with make:str and year:int. Build c = Car('Nissan', 2020). Store [c.make, c.year] in 'info'.",
+          hint:"from dataclasses import dataclass",
+          fallback_expected:"from dataclasses import dataclass\n@dataclass\nclass Car:\n    make: str\n    year: int\nc = Car('Nissan', 2020)\ninfo = [c.make, c.year]",
+          assertion:{ type:'binding', name:'info', value:['Nissan', 2020] } },
+        { id:'py_mas_10', prompt:"Define fib(n) via dict-cache memoization. fib(10) should be 55.",
+          hint:"cache = {}; if n in cache: return cache[n]; base cases; recurse.",
+          fallback_expected:"cache = {}\ndef fib(n):\n    if n in cache:\n        return cache[n]\n    if n < 2:\n        return n\n    cache[n] = fib(n-1) + fib(n-2)\n    return cache[n]",
+          assertion:{ type:'call', call:'fib(10)', expected:55 } },
+      ],
+    },
+    sql: {
+      introductory: [
+        { id:'sql_intro_01', prompt:"Select all columns from the 'customers' table.", hint:"SELECT * gets every column.", expected_query:"SELECT * FROM customers" },
+        { id:'sql_intro_02', prompt:"Find all mechanics who specialize in 'Engines'.", hint:"WHERE filters rows. Strings go in single quotes.", expected_query:"SELECT * FROM mechanics WHERE specialty = 'Engines'" },
+        { id:'sql_intro_03', prompt:"Select only the 'name' column from the customers table.", expected_query:"SELECT name FROM customers" },
+        { id:'sql_intro_04', prompt:"Count the total number of vehicles in the shop.", hint:"COUNT(*) counts rows.", expected_query:"SELECT COUNT(*) FROM vehicles" },
+        { id:'sql_intro_05', prompt:"Return all vehicles where make = 'Nissan'.", expected_query:"SELECT * FROM vehicles WHERE make = 'Nissan'" },
+        { id:'sql_intro_06', prompt:"Select every work_order with status = 'Open'.", expected_query:"SELECT * FROM work_orders WHERE status = 'Open'" },
+        { id:'sql_intro_07', prompt:"Return every distinct vehicle make (no duplicates).", hint:"DISTINCT removes duplicate rows.", expected_query:"SELECT DISTINCT make FROM vehicles" },
+        { id:'sql_intro_08', prompt:"List customers ordered by name ascending.", expected_query:"SELECT * FROM customers ORDER BY name ASC", order_sensitive:true },
+        { id:'sql_intro_09', prompt:"Find all vehicles with year = 2020.", expected_query:"SELECT * FROM vehicles WHERE year = 2020" },
+        { id:'sql_intro_10', prompt:"Count the number of open work_orders (status = 'Open').", expected_query:"SELECT COUNT(*) FROM work_orders WHERE status = 'Open'" },
+      ],
+      amateur: [
+        { id:'sql_am_01', prompt:"Find vehicles that are Nissan AND made in the 1990s.", hint:"BETWEEN is inclusive on both sides.",
+          expected_query:"SELECT * FROM vehicles WHERE make = 'Nissan' AND year BETWEEN 1990 AND 1999" },
+        { id:'sql_am_02', prompt:"Find work_orders with status 'Open' OR 'In Progress'.", hint:"IN ('a','b') is cleaner than OR.",
+          expected_query:"SELECT * FROM work_orders WHERE status IN ('Open', 'In Progress')" },
+        { id:'sql_am_03', prompt:"Find customers whose name starts with 'K'.", hint:"LIKE with a % wildcard.",
+          expected_query:"SELECT * FROM customers WHERE name LIKE 'K%'" },
+        { id:'sql_am_04', prompt:"Return the top 3 most expensive work_orders by total_cost (highest first).",
+          expected_query:"SELECT * FROM work_orders ORDER BY total_cost DESC LIMIT 3", order_sensitive:true },
+        { id:'sql_am_05', prompt:"Return the average total_cost across all work_orders.",
+          expected_query:"SELECT AVG(total_cost) FROM work_orders" },
+        { id:'sql_am_06', prompt:"Find customers whose name does NOT start with 'K'.", hint:"NOT LIKE or negate with NOT.",
+          expected_query:"SELECT * FROM customers WHERE name NOT LIKE 'K%'" },
+        { id:'sql_am_07', prompt:"Find customers who have no phone number on file.", hint:"IS NULL (not = NULL).",
+          expected_query:"SELECT * FROM customers WHERE phone IS NULL" },
+        { id:'sql_am_08', prompt:"Find vehicles where the make contains 'iss' (case-insensitive).", hint:"LOWER() normalizes case before LIKE.",
+          expected_query:"SELECT * FROM vehicles WHERE LOWER(make) LIKE '%iss%'" },
+        { id:'sql_am_09', prompt:"Return the minimum and maximum total_cost across work_orders as two columns.", hint:"MIN(col), MAX(col) in a single SELECT.",
+          expected_query:"SELECT MIN(total_cost), MAX(total_cost) FROM work_orders" },
+        { id:'sql_am_10', prompt:"Return work_order id and a bracket label: 'High' when total_cost >= 2000 else 'Low'. Column alias: bracket.",
+          hint:"CASE WHEN cond THEN a ELSE b END AS bracket.",
+          expected_query:"SELECT id, CASE WHEN total_cost >= 2000 THEN 'High' ELSE 'Low' END AS bracket FROM work_orders" },
+      ],
+      intermediate: [
+        { id:'sql_int_01', prompt:"Join vehicles and customers. Return customer name and vehicle make.", hint:"JOIN on customers.id = vehicles.customer_id.",
+          expected_query:"SELECT customers.name, vehicles.make FROM customers JOIN vehicles ON customers.id = vehicles.customer_id" },
+        { id:'sql_int_02', prompt:"Sum the total_cost of all completed work_orders.",
+          expected_query:"SELECT SUM(total_cost) FROM work_orders WHERE status = 'Completed'" },
+        { id:'sql_int_03', prompt:"Count work_orders grouped by status. Return status and the count.",
+          expected_query:"SELECT status, COUNT(*) FROM work_orders GROUP BY status" },
+        { id:'sql_int_04', prompt:"Return mechanic name and count of work_orders handled.", hint:"JOIN work_orders to mechanics, GROUP BY name.",
+          expected_query:"SELECT mechanics.name, COUNT(*) FROM mechanics JOIN work_orders ON mechanics.id = work_orders.mechanic_id GROUP BY mechanics.name" },
+        { id:'sql_int_05', prompt:"Return customer name and vehicle count, including customers with zero vehicles. Use LEFT JOIN.",
+          hint:"LEFT JOIN vehicles on customer_id, GROUP BY customers.id, COUNT(vehicles.id).",
+          expected_query:"SELECT customers.name, COUNT(vehicles.id) FROM customers LEFT JOIN vehicles ON customers.id = vehicles.customer_id GROUP BY customers.id" },
+        { id:'sql_int_06', prompt:"List customers who own 2 or more vehicles. Return name and vehicle count. (HAVING on the aggregate.)",
+          hint:"GROUP BY customer then HAVING COUNT(*) >= 2.",
+          expected_query:"SELECT customers.name, COUNT(vehicles.id) FROM customers JOIN vehicles ON customers.id = vehicles.customer_id GROUP BY customers.id HAVING COUNT(vehicles.id) >= 2" },
+        { id:'sql_int_07', prompt:"Return status and total_cost sum per status, ordered by sum descending.",
+          expected_query:"SELECT status, SUM(total_cost) FROM work_orders GROUP BY status ORDER BY SUM(total_cost) DESC",
+          order_sensitive:true },
+        { id:'sql_int_08', prompt:"Return average total_cost rounded to 2 decimals across all work_orders.",
+          hint:"ROUND(AVG(...), 2)",
+          expected_query:"SELECT ROUND(AVG(total_cost), 2) FROM work_orders" },
+        { id:'sql_int_09', prompt:"Three-table join: return customer name, vehicle model, and total_cost for each work_order.",
+          hint:"customers -> vehicles -> work_orders.",
+          expected_query:"SELECT customers.name, vehicles.model, work_orders.total_cost FROM work_orders JOIN vehicles ON work_orders.vehicle_id = vehicles.id JOIN customers ON vehicles.customer_id = customers.id" },
+        { id:'sql_int_10', prompt:"Sum total_cost per mechanic_id, but only for Completed work_orders. Return mechanic_id and the sum.",
+          expected_query:"SELECT mechanic_id, SUM(total_cost) FROM work_orders WHERE status = 'Completed' GROUP BY mechanic_id" },
+      ],
+      experienced: [
+        { id:'sql_exp_01', prompt:"Return mechanic_id, total revenue, and a rank (1 = highest). Use a window function.", hint:"RANK() OVER (ORDER BY ... DESC)",
+          expected_query:"SELECT mechanic_id, SUM(total_cost) AS revenue, RANK() OVER (ORDER BY SUM(total_cost) DESC) AS rnk FROM work_orders GROUP BY mechanic_id" },
+        { id:'sql_exp_02', prompt:"Find mechanic_ids whose total revenue exceeds 5000.", hint:"HAVING filters groups after aggregation.",
+          expected_query:"SELECT mechanic_id, SUM(total_cost) AS revenue FROM work_orders GROUP BY mechanic_id HAVING SUM(total_cost) > 5000" },
+        { id:'sql_exp_03', prompt:"Find mechanics whose total revenue equals the overall maximum mechanic revenue. Return mechanic_id and revenue. Use a subquery.",
+          hint:"The outer SELECT compares SUM to (SELECT MAX(sum) FROM ...) as a subquery.",
+          expected_query:"SELECT mechanic_id, SUM(total_cost) AS revenue FROM work_orders GROUP BY mechanic_id HAVING SUM(total_cost) = (SELECT MAX(s) FROM (SELECT SUM(total_cost) AS s FROM work_orders GROUP BY mechanic_id))" },
+        { id:'sql_exp_04', prompt:"Return work_order id, total_cost, and ROW_NUMBER() over total_cost descending as column 'rn'.",
+          hint:"ROW_NUMBER() OVER (ORDER BY ... DESC)",
+          expected_query:"SELECT id, total_cost, ROW_NUMBER() OVER (ORDER BY total_cost DESC) AS rn FROM work_orders" },
+        { id:'sql_exp_05', prompt:"Return mechanic_id, revenue, and DENSE_RANK() across revenue descending as 'drnk'.",
+          hint:"DENSE_RANK leaves no gaps on ties.",
+          expected_query:"SELECT mechanic_id, SUM(total_cost) AS revenue, DENSE_RANK() OVER (ORDER BY SUM(total_cost) DESC) AS drnk FROM work_orders GROUP BY mechanic_id" },
+        { id:'sql_exp_06', prompt:"Rank work_orders within each status: id, status, total_cost, and rank within status (highest first) as 'within_rank'.",
+          hint:"PARTITION BY status ORDER BY total_cost DESC.",
+          expected_query:"SELECT id, status, total_cost, RANK() OVER (PARTITION BY status ORDER BY total_cost DESC) AS within_rank FROM work_orders" },
+        { id:'sql_exp_07', prompt:"Return customer id, name, and phone but substitute 'N/A' when phone is NULL. Alias the column as phone_display.",
+          hint:"COALESCE(col, 'N/A').",
+          expected_query:"SELECT id, name, COALESCE(phone, 'N/A') AS phone_display FROM customers" },
+        { id:'sql_exp_08', prompt:"Union: all customer names AND all mechanic names in a single column named 'person'.",
+          hint:"SELECT name AS person ... UNION SELECT name AS person ...",
+          expected_query:"SELECT name AS person FROM customers UNION SELECT name AS person FROM mechanics" },
+        { id:'sql_exp_09', prompt:"Return status and the count of work_orders that are considered 'big' (total_cost >= 2000). Use CASE WHEN inside SUM.",
+          hint:"SUM(CASE WHEN cond THEN 1 ELSE 0 END).",
+          expected_query:"SELECT status, SUM(CASE WHEN total_cost >= 2000 THEN 1 ELSE 0 END) AS big_count FROM work_orders GROUP BY status" },
+        { id:'sql_exp_10', prompt:"Return customer id and a boolean-like flag (1 or 0) for whether they own any 2020+ model-year vehicle. Use EXISTS.",
+          hint:"SELECT ... , CASE WHEN EXISTS (subquery) THEN 1 ELSE 0 END.",
+          expected_query:"SELECT id, CASE WHEN EXISTS (SELECT 1 FROM vehicles v WHERE v.customer_id = customers.id AND v.year >= 2020) THEN 1 ELSE 0 END AS owns_modern FROM customers" },
+      ],
+      master: [
+        { id:'sql_mas_01', prompt:"Using a CTE, return customers who own more than 1 vehicle (columns: name, vehicle_count).",
+          expected_query:"WITH counts AS (SELECT customer_id, COUNT(*) AS vehicle_count FROM vehicles GROUP BY customer_id) SELECT customers.name, counts.vehicle_count FROM customers JOIN counts ON customers.id = counts.customer_id WHERE counts.vehicle_count > 1" },
+        { id:'sql_mas_02', prompt:"Multi-CTE: first CTE 'rev' sums total_cost per mechanic_id; second CTE 'avg_rev' computes overall AVG(revenue) from rev. Final select: mechanic_id, revenue, avg_rev.",
+          hint:"WITH rev AS (...), avg_rev AS (SELECT AVG(revenue) AS avg_rev FROM rev) SELECT ...",
+          expected_query:"WITH rev AS (SELECT mechanic_id, SUM(total_cost) AS revenue FROM work_orders GROUP BY mechanic_id), avg_rev AS (SELECT AVG(revenue) AS avg_rev FROM rev) SELECT rev.mechanic_id, rev.revenue, avg_rev.avg_rev FROM rev, avg_rev" },
+        { id:'sql_mas_03', prompt:"Self-join mechanics to itself: return pairs (a_id, b_id) where both share the same specialty and a_id < b_id. Columns: a_id, b_id, specialty.",
+          hint:"Alias the table twice: FROM mechanics a JOIN mechanics b ON a.specialty = b.specialty AND a.id < b.id.",
+          expected_query:"SELECT a.id AS a_id, b.id AS b_id, a.specialty FROM mechanics a JOIN mechanics b ON a.specialty = b.specialty AND a.id < b.id" },
+        { id:'sql_mas_04', prompt:"Running total of work_orders by id: return id, total_cost, and SUM(total_cost) OVER (ORDER BY id) AS running_total.",
+          hint:"Window function with ORDER BY in OVER.",
+          expected_query:"SELECT id, total_cost, SUM(total_cost) OVER (ORDER BY id) AS running_total FROM work_orders" },
+        { id:'sql_mas_05', prompt:"Return work_order id, total_cost, and NTILE(4) OVER (ORDER BY total_cost) AS quartile.",
+          hint:"NTILE(n) distributes rows into n roughly equal buckets.",
+          expected_query:"SELECT id, total_cost, NTILE(4) OVER (ORDER BY total_cost) AS quartile FROM work_orders" },
+        { id:'sql_mas_06', prompt:"Correlated subquery: return customer id, name, and count of vehicles they own using a scalar subquery in the SELECT.",
+          hint:"(SELECT COUNT(*) FROM vehicles WHERE customer_id = customers.id)",
+          expected_query:"SELECT id, name, (SELECT COUNT(*) FROM vehicles WHERE customer_id = customers.id) AS vcount FROM customers" },
+        { id:'sql_mas_07', prompt:"Recursive CTE: generate numbers 1..5 in a single column named 'n'.",
+          hint:"WITH RECURSIVE cnt(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM cnt WHERE n < 5) SELECT n FROM cnt.",
+          expected_query:"WITH RECURSIVE cnt(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM cnt WHERE n < 5) SELECT n FROM cnt",
+          order_sensitive:true },
+        { id:'sql_mas_08', prompt:"Pivot-style: return one row with three columns: open_count, inprogress_count, completed_count using SUM(CASE WHEN ...).",
+          hint:"SUM(CASE WHEN status = 'Open' THEN 1 ELSE 0 END) AS open_count, ...",
+          expected_query:"SELECT SUM(CASE WHEN status = 'Open' THEN 1 ELSE 0 END) AS open_count, SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END) AS inprogress_count, SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) AS completed_count FROM work_orders" },
+        { id:'sql_mas_09', prompt:"For each work_order: id, total_cost, and percent_of_total (total_cost * 100.0 / sum over all) using window SUM() OVER ().",
+          hint:"col * 100.0 / SUM(col) OVER () gives each row's share.",
+          expected_query:"SELECT id, total_cost, total_cost * 100.0 / SUM(total_cost) OVER () AS percent_of_total FROM work_orders" },
+        { id:'sql_mas_10', prompt:"Find the single customer with the highest total spend across all their work_orders. Return name and total_spent.",
+          hint:"Join through vehicles, GROUP BY customer, ORDER BY sum DESC, LIMIT 1.",
+          expected_query:"SELECT customers.name, SUM(work_orders.total_cost) AS total_spent FROM customers JOIN vehicles ON vehicles.customer_id = customers.id JOIN work_orders ON work_orders.vehicle_id = vehicles.id GROUP BY customers.id ORDER BY SUM(work_orders.total_cost) DESC LIMIT 1",
+          order_sensitive:true },
+      ],
+    },
+  };
+
+  /* ============================================================
+     HELPERS
+     ============================================================ */
+  function deepEq(a, b) {
+    if (a === b) return true;
+    if (typeof a !== typeof b) return false;
+    if (a === null || b === null) return a === b;
+    if (Array.isArray(a)) {
+      if (!Array.isArray(b) || a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) if (!deepEq(a[i], b[i])) return false;
+      return true;
+    }
+    if (typeof a === 'object') {
+      const ak = Object.keys(a), bk = Object.keys(b);
+      if (ak.length !== bk.length) return false;
+      for (const k of ak) if (!deepEq(a[k], b[k])) return false;
+      return true;
+    }
+    if (typeof a === 'number' && typeof b === 'number') return Math.abs(a - b) < 1e-9;
+    return false;
+  }
+  function truncate(s, n=120) { s = String(s); return s.length > n ? s.slice(0, n-1) + '…' : s; }
+  function normPythonSource(s) {
+    return String(s).replace(/"/g,"'").replace(/\s+/g,' ').replace(/\s*=\s*/g,'=').replace(/[\s;]+$/g,'').trim();
+  }
+  function fmtTime(d) {
+    return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  }
+  function fmtDuration(ms) {
+    const s = Math.floor(ms/1000);
+    const m = Math.floor(s/60), sec = s%60;
+    return String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+  }
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ============================================================
+     GameState — persistence + activity log + session stats
+     ============================================================ */
+  class GameState {
+    constructor() {
+      this.storageKey = 'ghostTerminal.state';
+      this.state = this._defaultState();
+      this.load();
+      this.sessionStart = Date.now();
+      this.sessionAttempts = 0;
+      this.sessionCorrect = 0;
+      this.streak = 0;
+    }
+
+    _defaultState() {
+      return {
+        version: STATE_VERSION,
+        activeTrack: null,
+        completed: { python: {}, sql: {} },
+        activity: [],
+      };
+    }
+
+    load() {
+      try {
+        const raw = localStorage.getItem(this.storageKey);
+        if (!raw) return;
+        this.state = this._migrate(JSON.parse(raw));
+      } catch (e) {
+        console.warn('GameState load failed:', e);
+        this.state = this._defaultState();
+      }
+    }
+
+    _migrate(parsed) {
+      if (!parsed || typeof parsed !== 'object') return this._defaultState();
+      if (parsed.version === STATE_VERSION) return parsed;
+      return {
+        version: STATE_VERSION,
+        activeTrack: parsed.activeTrack || null,
+        completed: {
+          python: (parsed.completed && parsed.completed.python) || {},
+          sql:    (parsed.completed && parsed.completed.sql)    || {},
+        },
+        activity: parsed.activity || [],
+      };
+    }
+
+    save() {
+      try { localStorage.setItem(this.storageKey, JSON.stringify(this.state)); }
+      catch (e) { console.warn('GameState save failed:', e); }
+    }
+
+    setActiveTrack(track) { this.state.activeTrack = track; this.save(); }
+    getActiveTrack()      { return this.state.activeTrack; }
+
+    markComplete(track, questionId) {
+      if (!this.state.completed[track]) this.state.completed[track] = {};
+      this.state.completed[track][questionId] = true;
+      this.save();
+    }
+
+    isComplete(track, questionId) {
+      return !!(this.state.completed[track] && this.state.completed[track][questionId]);
+    }
+
+    countCompleteInTier(track, tier) {
+      const pool = (QUESTIONS[track] && QUESTIONS[track][tier]) || [];
+      const done = this.state.completed[track] || {};
+      return pool.filter(q => done[q.id]).length;
+    }
+
+    getCurrentTier(track) {
+      for (let i = 1; i < TIER_ORDER.length; i++) {
+        const prev = TIER_ORDER[i - 1];
+        if (this.countCompleteInTier(track, prev) < GATE_SIZE) return prev;
+      }
+      return TIER_ORDER[TIER_ORDER.length - 1];
+    }
+
+    getNextQuestion(track) {
+      const tier = this.getCurrentTier(track);
+      const pool = (QUESTIONS[track] && QUESTIONS[track][tier]) || [];
+      return pool.find(q => !this.isComplete(track, q.id)) || null;
+    }
+
+    logActivity(type, detail) {
+      const entry = { ts: Date.now(), type, detail };
+      this.state.activity.unshift(entry);
+      this.state.activity = this.state.activity.slice(0, MAX_ACTIVITY);
+      this.save();
+    }
+
+    totalCompleted() {
+      let total = 0;
+      ['python','sql'].forEach(t => {
+        const done = this.state.completed[t] || {};
+        TIER_ORDER.forEach(ti => {
+          const pool = (QUESTIONS[t] && QUESTIONS[t][ti]) || [];
+          total += pool.filter(q => done[q.id]).length;
+        });
+      });
+      return total;
+    }
+    totalAuthored() {
+      let total = 0;
+      ['python','sql'].forEach(t => {
+        TIER_ORDER.forEach(ti => {
+          total += ((QUESTIONS[t] && QUESTIONS[t][ti]) || []).length;
+        });
+      });
+      return total;
+    }
+
+    recordAttempt(ok) {
+      this.sessionAttempts += 1;
+      if (ok) { this.sessionCorrect += 1; this.streak += 1; }
+      else    { this.streak = 0; }
+    }
+    accuracy() {
+      if (this.sessionAttempts === 0) return null;
+      return Math.round((this.sessionCorrect / this.sessionAttempts) * 100);
+    }
+
+    resetAll() {
+      this.state = this._defaultState(); this.save();
+      this.sessionStart = Date.now();
+      this.sessionAttempts = 0; this.sessionCorrect = 0; this.streak = 0;
+    }
+    exportJson()     { return JSON.stringify(this.state); }
+    importJson(json) { this.state = this._migrate(JSON.parse(json)); this.save(); }
+  }
+
+  /* ============================================================
+     PythonEngine + SqlEngine (unchanged logic from v2.1)
+     ============================================================ */
+  class PythonEngine {
+    constructor() { this.pyodide=null; this.ready=false; this.failed=false; this.failReason=''; this.loading=null; }
+    init() {
+      if (this.loading) return this.loading;
+      this.loading = (async () => {
+        try {
+          const loadP = loadPyodide({ indexURL: PYODIDE_INDEX_URL });
+          const timeoutP = new Promise((_, rej) =>
+            setTimeout(() => rej(new Error(`timed out after ${PYODIDE_TIMEOUT_MS/1000}s`)), PYODIDE_TIMEOUT_MS));
+          this.pyodide = await Promise.race([loadP, timeoutP]);
+          this.ready = true;
+        } catch (e) {
+          this.failed = true; this.failReason = String(e.message || e);
+          console.warn('Pyodide init failed:', e);
+        }
+      })();
+      return this.loading;
+    }
+    _pyToJs(val) {
+      if (val === undefined || val === null) return val;
+      if (typeof val === 'object' && val.toJs) return val.toJs({ dict_converter: Object.fromEntries });
+      return val;
+    }
+    async evaluate(userCode, question) {
+      if (this.failed) return this._fallback(userCode, question);
+      if (!this.ready) { await this.init(); if (this.failed) return this._fallback(userCode, question); }
+      return this._pyodideEvaluate(userCode, question);
+    }
+
+    /** Run user code with stdout capture but DON'T grade.
+     *  Also probes the assertion target (binding / call / expression)
+     *  so the user sees a useful value even when their code doesn't print. */
+    async preview(userCode, question) {
+      if (this.failed) {
+        return { error:'Python runtime unavailable. In pattern-match mode, type `submit` to check your answer against the expected syntax.' };
+      }
+      if (!this.ready) {
+        await this.init();
+        if (this.failed) return { error:'Python runtime unavailable.' };
+      }
+      const py = this.pyodide;
+      const ns = py.toPy({});
+      try {
+        await py.runPythonAsync("import sys, io\n__stdout__ = io.StringIO()\nsys.stdout = __stdout__", { globals: ns });
+        if (question.setup) {
+          try { await py.runPythonAsync(question.setup, { globals: ns }); }
+          catch (e) { return { error:`setup error: ${this._cleanError(e)}` }; }
+        }
+        try { await py.runPythonAsync(userCode, { globals: ns }); }
+        catch (e) { return { error: this._cleanError(e) }; }
+        const stdout = String(await py.runPythonAsync("__stdout__.getvalue()", { globals: ns }));
+
+        // Probe the assertion target so user sees the actual value their code produced.
+        const a = question.assertion;
+        let probe = null;
+        if (a && a.type === 'binding') {
+          const v = ns.get(a.name);
+          if (v === undefined) {
+            probe = { label: a.name, undef: true };
+          } else {
+            const js = this._pyToJs(v);
+            if (v && v.destroy) v.destroy();
+            probe = { label: a.name, value: js };
+          }
+        } else if (a && (a.type === 'call' || a.type === 'expression')) {
+          const expr = a.call || a.expression;
+          try {
+            const r = await py.runPythonAsync(expr, { globals: ns });
+            const js = this._pyToJs(r);
+            if (r && r.destroy) r.destroy();
+            probe = { label: expr, value: js };
+          } catch (e) {
+            probe = { label: expr, error: this._cleanError(e) };
+          }
+        }
+        return { stdout, probe };
+      } finally { if (ns && ns.destroy) ns.destroy(); }
+    }
+
+    _fallback(userCode, question) {
+      if (!question.fallback_expected) return { ok:false, detail:'Python runtime unavailable and no fallback pattern defined.' };
+      const ok = normPythonSource(userCode) === normPythonSource(question.fallback_expected);
+      return ok ? { ok:true, degraded:true }
+                : { ok:false, detail:'(pattern-match mode) your answer must match expected syntax closely.' };
+    }
+    async _pyodideEvaluate(userCode, question) {
+      const py = this.pyodide;
+      const ns = py.toPy({});
+      try {
+        await py.runPythonAsync("import sys, io\n__stdout__ = io.StringIO()\nsys.stdout = __stdout__", { globals: ns });
+        if (question.setup) await py.runPythonAsync(question.setup, { globals: ns });
+        try { await py.runPythonAsync(userCode, { globals: ns }); }
+        catch (e) { return { ok:false, detail:this._cleanError(e) }; }
+        const stdout = String(await py.runPythonAsync("__stdout__.getvalue()", { globals: ns }));
+        const a = question.assertion;
+        if (!a) return { ok:false, detail:'Question is missing an assertion.' };
+
+        if (a.type === 'binding') {
+          const pyVal = ns.get(a.name);
+          if (pyVal === undefined) return { ok:false, detail:`Variable '${a.name}' was not defined.` };
+          const js = this._pyToJs(pyVal);
+          if (pyVal && pyVal.destroy) pyVal.destroy();
+          const ok = deepEq(js, a.value);
+          return ok ? { ok:true } : { ok:false,
+            detail:`expected  ${a.name} = ${truncate(JSON.stringify(a.value))}\n   got       ${a.name} = ${truncate(JSON.stringify(js))}` };
+        }
+        if (a.type === 'stdout') {
+          const exp = a.value.trim(), got = stdout.trim();
+          return exp === got ? { ok:true } : { ok:false,
+            detail:`expected stdout: ${truncate(JSON.stringify(exp))}\n   got stdout:      ${truncate(JSON.stringify(got))}` };
+        }
+        if (a.type === 'call' || a.type === 'expression') {
+          const expr = a.call || a.expression;
+          let pyResult;
+          try { pyResult = await py.runPythonAsync(expr, { globals: ns }); }
+          catch (e) { return { ok:false, detail:`error evaluating '${expr}': ${this._cleanError(e)}` }; }
+          const js = this._pyToJs(pyResult);
+          if (pyResult && pyResult.destroy) pyResult.destroy();
+          const ok = deepEq(js, a.expected);
+          return ok ? { ok:true } : { ok:false,
+            detail:`expected  ${expr} == ${truncate(JSON.stringify(a.expected))}\n   got       ${expr} == ${truncate(JSON.stringify(js))}` };
+        }
+        return { ok:false, detail:`unknown assertion type: ${a.type}` };
+      } finally { if (ns && ns.destroy) ns.destroy(); }
+    }
+    _cleanError(e) {
+      const msg = String(e.message || e);
+      return msg.split('\n').map(l => l.trimEnd()).filter(l => l.length).slice(-3).join('\n   ');
+    }
+  }
+
+  class SqlEngine {
+    constructor() { this.SQL=null; this.db=null; this.ready=false; this.failed=false; this.failReason=''; this.loading=null; }
+    init() {
+      if (this.loading) return this.loading;
+      this.loading = (async () => {
+        try {
+          this.SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}` });
+          this.db = new this.SQL.Database();
+          this.db.run(SCHEMA_SQL); this.db.run(SEED_SQL);
+          this.ready = true;
+        } catch (e) { this.failed = true; this.failReason = String(e.message || e); console.warn('sql.js init failed:', e); }
+      })();
+      return this.loading;
+    }
+    _rebuildDb() {
+      // Rebuild from scratch so DML statements in user queries (INSERT/UPDATE/DELETE)
+      // don't leak into subsequent question evaluations.
+      if (this.db && this.db.close) {
+        try { this.db.close(); } catch (_) {}
+      }
+      this.db = new this.SQL.Database();
+      this.db.run(SCHEMA_SQL);
+      this.db.run(SEED_SQL);
+    }
+
+    /** Run a query and return { columns, rows } without grading. */
+    async preview(userQuery) {
+      if (this.failed) return { error:`SQL engine unavailable: ${this.failReason}` };
+      if (!this.ready) await this.init();
+      if (this.failed) return { error:`SQL engine unavailable: ${this.failReason}` };
+      try { this._rebuildDb(); }
+      catch (e) { return { error:`SQL engine rebuild error: ${e.message}` }; }
+      try {
+        const r = this.db.exec(userQuery);
+        if (!r.length) return { columns:[], rows:[], empty:true };
+        return { columns: r[0].columns, rows: r[0].values };
+      } catch (e) {
+        return { error: e.message };
+      }
+    }
+
+    /** List all tables in the current DB. */
+    async listTables() {
+      if (!this.ready) { await this.init(); if (this.failed) return []; }
+      this._rebuildDb();
+      try {
+        const r = this.db.exec("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
+        return r.length ? r[0].values.map(v => v[0]) : [];
+      } catch (_) { return []; }
+    }
+
+    /** PRAGMA table_info() wrapper → returns array of {name, type, notnull, pk}. */
+    async describeTable(tableName) {
+      if (!this.ready) { await this.init(); if (this.failed) return { error:`SQL engine unavailable: ${this.failReason}` }; }
+      this._rebuildDb();
+      try {
+        // sqlite PRAGMA doesn't accept parameterized values easily; table names come from a trusted allowlist.
+        const tables = (await this.listTables()).map(t => t.toLowerCase());
+        if (!tables.includes(String(tableName).toLowerCase())) {
+          return { error: `No such table: ${tableName}` };
+        }
+        const r = this.db.exec(`PRAGMA table_info(${tableName})`);
+        if (!r.length) return { error: `No such table: ${tableName}` };
+        // columns: cid, name, type, notnull, dflt_value, pk
+        return {
+          columns: r[0].values.map(row => ({
+            name: row[1], type: row[2],
+            notnull: !!row[3], pk: !!row[5],
+          }))
+        };
+      } catch (e) {
+        return { error: e.message };
+      }
+    }
+
+    async evaluate(userQuery, question) {
+      if (this.failed) return { ok:false, detail:`SQL engine unavailable: ${this.failReason}` };
+      if (!this.ready) await this.init();
+      if (this.failed) return { ok:false, detail:`SQL engine unavailable: ${this.failReason}` };
+
+      // Fresh DB for the user's query so previous answers can't poison state.
+      try { this._rebuildDb(); }
+      catch (e) { return { ok:false, detail:`SQL engine rebuild error: ${e.message}` }; }
+
+      let userResult, expectedResult;
+      try { userResult = this.db.exec(userQuery); }
+      catch (e) { return { ok:false, detail:`SQL error: ${e.message}` }; }
+
+      // Rebuild again so the expected query runs against a clean DB too.
+      try { this._rebuildDb(); }
+      catch (e) { return { ok:false, detail:`SQL engine rebuild error: ${e.message}` }; }
+
+      try { expectedResult = this.db.exec(question.expected_query); }
+      catch (e) { return { ok:false, detail:`internal expected-query error: ${e.message}` }; }
+      return this._compare(userResult, expectedResult, !!question.order_sensitive);
+    }
+    _compare(user, expected, orderSensitive) {
+      const uEmpty = !user.length, eEmpty = !expected.length;
+      if (uEmpty && eEmpty) return { ok:true };
+      if (uEmpty) return { ok:false, detail:'your query returned no result set' };
+      if (eEmpty) return { ok:false, detail:'your query should not return a result set' };
+      const u = user[0], e = expected[0];
+      if (u.columns.length !== e.columns.length) {
+        return { ok:false, detail:`column count: got ${u.columns.length}, expected ${e.columns.length}\n   your cols: ${u.columns.join(', ')}\n   expected:  ${e.columns.join(', ')}` };
+      }
+      if (u.values.length !== e.values.length) return { ok:false, detail:`row count: got ${u.values.length}, expected ${e.values.length}` };
+      const rowCmp = (a, b) => {
+        const sa = a.map(v => v === null ? '\x00' : String(v)).join('\x01');
+        const sb = b.map(v => v === null ? '\x00' : String(v)).join('\x01');
+        return sa < sb ? -1 : sa > sb ? 1 : 0;
+      };
+      let uRows = u.values, eRows = e.values;
+      if (!orderSensitive) { uRows = [...uRows].sort(rowCmp); eRows = [...eRows].sort(rowCmp); }
+      for (let i = 0; i < uRows.length; i++) {
+        for (let j = 0; j < uRows[i].length; j++) {
+          const uv = uRows[i][j], ev = eRows[i][j];
+          const same = (uv === null && ev === null) ||
+                       (typeof uv === 'number' && typeof ev === 'number'
+                          ? Math.abs(uv - ev) < 1e-9 : String(uv) === String(ev));
+          if (!same) return { ok:false, detail:`row ${i+1} differs: got [${uRows[i].join(', ')}]\n   expected:      [${eRows[i].join(', ')}]` };
+        }
+      }
+      return { ok:true };
+    }
+  }
+
+  /* ============================================================
+     UI RENDERERS — left rail, right rail, ticker
+     ============================================================ */
+  class UI {
+    constructor(state) {
+      this.state = state;
+      this.tracksContainer = document.getElementById('tracks-container');
+      this.activeQ         = document.getElementById('active-question');
+      this.activityPanel   = document.getElementById('activity-panel');
+      this.schemaPanel     = document.getElementById('schema-panel');
+      this.tickerTrack     = document.getElementById('ticker-track');
+      this.navPills        = document.getElementById('nav-pills');
+    }
+
+    renderNav() {
+      if (!this.navPills) return;
+      this.navPills.innerHTML = PRODUCT_NAV.map(p => {
+        const cls = p.active ? 'nav-pill active' : 'nav-pill';
+        // Active pill is non-navigating; others link to p.url.
+        if (p.active) return `<span class="${cls}">${p.label}</span>`;
+        return `<a class="${cls}" href="${p.url}">${p.label}</a>`;
+      }).join('');
+    }
+
+    renderLeftRail() {
+      const active = this.state.getActiveTrack();
+      const html = ['python','sql'].map(track => {
+        const tier = this.state.getCurrentTier(track);
+        const isActive = active === track;
+        const rows = TIER_ORDER.map(ti => {
+          const count = this.state.countCompleteInTier(track, ti);
+          const isDone = count >= GATE_SIZE;
+          const isCurr = ti === tier && isActive;
+          const tierIdx = TIER_ORDER.indexOf(ti);
+          const currIdx = TIER_ORDER.indexOf(tier);
+          const isLocked = tierIdx > currIdx;
+          const dotClass = isLocked ? 'locked' : ti;
+          const labelClass = isDone ? 'done' : (isCurr ? 'active' : (isLocked ? 'locked' : ''));
+          const countClass = isDone ? 'done' : (isCurr ? 'active' : '');
+          const pct = Math.min(100, Math.round((count / GATE_SIZE) * 100));
+          return `
+            <div class="tier-row">
+              <div class="tier-dot ${dotClass}"></div>
+              <div class="tier-label ${labelClass}">${TIER_LABELS[ti]}</div>
+              <div class="tier-count ${countClass}">${count}/${GATE_SIZE}</div>
+            </div>
+            ${isCurr ? `<div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>` : ''}
+          `;
+        }).join('');
+        return `
+          <div class="track-block">
+            <div class="track-header ${isActive ? 'active' : ''}">${track.toUpperCase()}</div>
+            ${rows}
+          </div>
+        `;
+      }).join('');
+      this.tracksContainer.innerHTML = html;
+    }
+
+    renderKpis() {
+      const total    = this.state.totalCompleted();
+      const authored = this.state.totalAuthored();
+      const attempts = this.state.sessionAttempts;
+      const acc      = this.state.accuracy();
+      const streak   = this.state.streak;
+      const elapsed  = Date.now() - this.state.sessionStart;
+
+      document.getElementById('kpi-total').textContent    = `${total}/${authored}`;
+      document.getElementById('kpi-attempts').textContent = String(attempts);
+      document.getElementById('kpi-accuracy').textContent = acc === null ? '—' : `${acc}%`;
+      document.getElementById('kpi-streak').textContent   = String(streak);
+      document.getElementById('kpi-session').textContent  = fmtDuration(elapsed);
+    }
+
+    renderActiveQuestion(question, track) {
+      if (!question) {
+        this.activeQ.innerHTML = `
+          <div class="q-card">
+            <div class="q-empty">No track engaged. Type <code>start python</code> or <code>start sql</code> to begin.</div>
+          </div>`;
+        return;
+      }
+      const tier = this.state.getCurrentTier(track);
+      const done = this.state.countCompleteInTier(track, tier);
+      const hintHtml = question.hint
+        ? `<div class="q-hint">💡 ${esc(question.hint)}</div>` : '';
+      const flowHint = `<div class="q-hint"><code>Enter</code> = newline only · click <code>▶ RUN</code> / <code>✓ SUBMIT</code> (or Ctrl+Enter)</div>`;
+      this.activeQ.innerHTML = `
+        <div class="q-card">
+          <div class="q-tag ${tier}">
+            <span class="tier-pill">${TIER_SHORT[tier]}</span>
+            ${track.toUpperCase()} · ${done + 1}/${GATE_SIZE} · ${esc(question.id)}
+          </div>
+          <div class="q-prompt">${esc(question.prompt)}</div>
+          ${hintHtml}
+          ${flowHint}
+        </div>`;
+    }
+
+    renderActivity() {
+      const items = this.state.state.activity || [];
+      if (!items.length) {
+        this.activityPanel.innerHTML = '<div class="activity-empty">No activity yet.</div>';
+        return;
+      }
+      const ICONS = { correct:'✓', incorrect:'✗', unlock:'★', enter:'⟳', exit:'⟲', reset:'⌫' };
+      this.activityPanel.innerHTML = items.map(a => {
+        const t = fmtTime(new Date(a.ts));
+        return `
+          <div class="activity-row ${a.type}">
+            <div class="ts">${t}</div>
+            <div class="ico">${ICONS[a.type] || '·'}</div>
+            <div class="msg">${esc(a.detail || '')}</div>
+          </div>`;
+      }).join('');
+    }
+
+    renderTicker() {
+      // Build ticker items from completions, current state, and recent activity.
+      const items = [];
+      ['python','sql'].forEach(t => {
+        const tier = this.state.getCurrentTier(t);
+        const done = this.state.countCompleteInTier(t, tier);
+        const dir  = done >= GATE_SIZE ? 'up' : (done > 0 ? 'up' : '');
+        items.push(`
+          <div class="ticker-item ${dir}">
+            <span class="sym">${t.toUpperCase()}/${TIER_SHORT[tier].toUpperCase()}</span>
+            <span class="val">${done}/${GATE_SIZE}</span>
+          </div>`);
+      });
+      // Total across all tiers
+      ['python','sql'].forEach(t => {
+        let total = 0, authored = 0;
+        TIER_ORDER.forEach(ti => {
+          const pool = QUESTIONS[t][ti] || [];
+          authored += pool.length;
+          total += pool.filter(q => this.state.isComplete(t, q.id)).length;
+        });
+        items.push(`
+          <div class="ticker-item">
+            <span class="sym">${t.toUpperCase()} TOTAL</span>
+            <span class="val">${total}/${authored}</span>
+          </div>`);
+      });
+      // Recent activity as events
+      (this.state.state.activity || []).slice(0, 5).forEach(a => {
+        const cls = a.type === 'correct' ? 'up' : (a.type === 'incorrect' ? 'down' : 'event');
+        const sym = { correct:'✓', incorrect:'✗', unlock:'★ UNLOCKED', enter:'⟳ ENTER', exit:'⟲ EXIT', reset:'⌫ RESET' }[a.type] || '';
+        items.push(`
+          <div class="ticker-item ${cls}">
+            <span class="sym">${sym}</span>
+            <span class="val">${esc(a.detail || '')}</span>
+          </div>`);
+      });
+      // Duplicate the list so CSS translateX(-50%) loops seamlessly.
+      const content = items.join('') + items.join('');
+      this.tickerTrack.innerHTML = content;
+    }
+
+    renderAll(app) {
+      this.renderNav();
+      this.renderLeftRail();
+      this.renderKpis();
+      this.renderActivity();
+      this.renderTicker();
+      // Active question is handled from app flow
+      if (app && app.currentQ && app.state.getActiveTrack()) {
+        this.renderActiveQuestion(app.currentQ, app.state.getActiveTrack());
+      } else {
+        this.renderActiveQuestion(null);
+      }
+    }
+  }
+
+  /* ============================================================
+     TerminalApp
+     ============================================================ */
+  class TerminalApp {
+    constructor(term, state, py, sql, ui) {
+      this.term=term; this.state=state; this.py=py; this.sql=sql; this.ui=ui;
+      this.inputBuffer=''; this.mode='IDLE'; this.currentQ=null;
+      this.prompt='GHOST> '; this.history=[]; this.historyIdx=0;
+      // v3.7: multi-line input and run-then-submit flow
+      this.renderedLines = 1;     // visual lines occupied by current prompt + buffer
+      // v3.7: cursor position in inputBuffer (index into the string).
+      // Normal append puts cursor at buffer.length; arrow keys move it within.
+      this.cursorPos = 0;
+    }
+
+    C = {
+      amber:'\x1b[38;5;214m', green:'\x1b[38;5;42m', red:'\x1b[38;5;203m',
+      dim:'\x1b[38;5;240m', label:'\x1b[38;5;238m', bold:'\x1b[1m', reset:'\x1b[0m',
+    };
+    write(s) { this.term.write(s); }
+    writeln(s='') { this.term.write(s + '\r\n'); }
+    writePrompt() {
+      this.term.write(this.C.amber + this.prompt + this.C.reset);
+      this.renderedLines = 1;
+      this.cursorPos = 0;
+    }
+    writeContinuationPrompt() {
+      this.term.write(this.C.dim + '...> ' + this.C.reset);
+    }
+
+    /** Map a buffer index to {row, col} where row=0 is the prompt row, col is
+     *  characters past the prompt/continuation marker on that row. */
+    _bufferIndexToRowCol(idx) {
+      const before = this.inputBuffer.slice(0, idx);
+      const segs = before.split('\n');
+      return { row: segs.length - 1, col: segs[segs.length - 1].length };
+    }
+
+    /** After a redraw we need to physically move the xterm cursor to the
+     *  position represented by this.cursorPos. */
+    _moveCursorToPosition() {
+      const PROMPT_LEN = this.prompt.length;     // e.g. "sql> " = 5
+      const CONT_LEN = 5;                        // "...> " = 5
+      const target = this._bufferIndexToRowCol(this.cursorPos);
+      const end = this._bufferIndexToRowCol(this.inputBuffer.length);
+      // Cursor is currently at `end` (we just finished writing the buffer).
+      // Move up if needed:
+      if (end.row > target.row) {
+        this.term.write('\x1b[' + (end.row - target.row) + 'A');
+      } else if (end.row < target.row) {
+        this.term.write('\x1b[' + (target.row - end.row) + 'B');
+      }
+      // Then jump to absolute column on this row.
+      const absCol = (target.row === 0 ? PROMPT_LEN : CONT_LEN) + target.col + 1;
+      this.term.write('\x1b[' + absCol + 'G');
+    }
+
+    /** Full redraw of the current input buffer (prompt + continuation lines)
+     *  AND position the cursor at this.cursorPos. */
+    redrawInput() {
+      // Move cursor back up to the row the initial prompt was drawn on.
+      if (this.renderedLines > 1) {
+        this.term.write('\x1b[' + (this.renderedLines - 1) + 'A');
+      }
+      this.term.write('\r\x1b[J'); // CR + erase from cursor to end of screen
+      const lines = this.inputBuffer.split('\n');
+      lines.forEach((line, i) => {
+        if (i === 0) {
+          this.term.write(this.C.amber + this.prompt + this.C.reset + line);
+        } else {
+          this.term.write('\r\n');
+          this.writeContinuationPrompt();
+          this.term.write(line);
+        }
+      });
+      this.renderedLines = lines.length;
+      // Cursor is currently at end-of-buffer. If user wants it elsewhere, reposition.
+      if (this.cursorPos !== this.inputBuffer.length) {
+        this._moveCursorToPosition();
+      }
+    }
+
+    boot() {
+      const isNarrow = (window.innerWidth || document.documentElement.clientWidth || 0) < 600;
+      this.writeln('');
+      if (isNarrow) {
+        // Single-line compact banner for small viewports.
+        this.writeln(this.C.amber + '  >> GHOST TRAINING v3.7' + this.C.reset + this.C.dim + '  //  Ghost Strategies LLC' + this.C.reset);
+      } else {
+        this.writeln(this.C.amber + '  >> GHOST TRAINING TERMINAL v3.7' + this.C.reset);
+        this.writeln(this.C.dim  + '  >> Ghost Strategies LLC' + this.C.reset);
+      }
+      this.writeln('');
+      this.writeln(this.C.dim + '  System ready. Type `help` or `start sql` / `start python` to begin.' + this.C.reset);
+
+      if (IS_IOS) {
+        this.writeln(this.C.dim + '  iOS detected — Python runtime can take up to 90s on first load.' + this.C.reset);
+        this.writeln(this.C.dim + '  If Pyodide fails, Python falls back to pattern-match mode. SQL is unaffected.' + this.C.reset);
+      }
+
+      const saved = this.state.getActiveTrack();
+      if (saved && QUESTIONS[saved]) {
+        const tier = this.state.getCurrentTier(saved);
+        const done = this.state.countCompleteInTier(saved, tier);
+        this.writeln(this.C.dim + `  Previous session: ${saved.toUpperCase()} (${TIER_LABELS[tier]}, ${done}/${GATE_SIZE}). Type \`start ${saved}\` to resume.` + this.C.reset);
+      }
+      this.writeln('');
+      this.updateHeader();
+      this.ui.renderAll(this);
+      this.writePrompt();
+    }
+
+    updateHeader() {
+      const track = this.state.getActiveTrack();
+      document.getElementById('hdr-track').textContent = track ? track.toUpperCase() : '—';
+      if (track) {
+        const tier = this.state.getCurrentTier(track);
+        const done = this.state.countCompleteInTier(track, tier);
+        document.getElementById('hdr-rank').textContent = TIER_LABELS[tier].toUpperCase();
+        document.getElementById('hdr-progress').textContent = `${done}/${GATE_SIZE}`;
+      } else {
+        document.getElementById('hdr-rank').textContent = '—';
+        document.getElementById('hdr-progress').textContent = '—';
+      }
+    }
+
+    updateEngineStatus() {
+      const foot = document.getElementById('footer-engines');
+      const dot  = document.getElementById('hdr-dot');
+      const stat = document.getElementById('hdr-status');
+      const pyLabel  = this.py.ready  ? 'ready'    : (this.py.failed  ? 'DEGRADED' : 'loading');
+      const sqlLabel = this.sql.ready ? 'ready'    : (this.sql.failed ? 'FAILED'   : 'loading');
+      foot.textContent = `engines · python: ${pyLabel}  ·  sql: ${sqlLabel}`;
+
+      const anyLoading = (!this.py.ready && !this.py.failed) || (!this.sql.ready && !this.sql.failed);
+      dot.classList.remove('loading','failed');
+      stat.classList.remove('amber','green','red');
+      if (anyLoading) { dot.classList.add('loading'); stat.textContent='BOOTING'; stat.classList.add('amber'); }
+      else if (this.sql.failed && (this.py.failed || !this.py.ready)) { dot.classList.add('failed'); stat.textContent='OFFLINE'; stat.classList.add('red'); }
+      else if (this.py.failed) { dot.classList.add('loading'); stat.textContent='DEGRADED'; stat.classList.add('amber'); }
+      else { stat.textContent='ONLINE'; stat.classList.add('green'); }
+    }
+
+    /* ─── Input ─── */
+    onData(data) {
+      // Handle full ANSI sequences first (arrow keys, Home/End, Delete, etc.)
+      // These arrive as multi-byte sequences. Order matters — check before per-char loop.
+      if (data === '\x1b[A') { this.historyPrev(); return; }   // Up
+      if (data === '\x1b[B') { this.historyNext(); return; }   // Down
+      if (data === '\x1b[C') { this.cursorRight(); return; }   // Right
+      if (data === '\x1b[D') { this.cursorLeft(); return; }    // Left
+      if (data === '\x1b[H' || data === '\x1b[1~' || data === '\x1bOH') {
+        this.cursorHome(); return;                              // Home
+      }
+      if (data === '\x1b[F' || data === '\x1b[4~' || data === '\x1bOF') {
+        this.cursorEnd(); return;                               // End
+      }
+      if (data === '\x1b[3~') { this.deleteForward(); return; } // Delete (forward)
+      if (data === '\x1b[1;5C') { this.cursorRight(); return; } // Ctrl+Right (treat as Right for now)
+      if (data === '\x1b[1;5D') { this.cursorLeft(); return; }  // Ctrl+Left
+      if (data.length > 1 && data.startsWith('\x1b')) return;   // unknown escape
+
+      for (let i = 0; i < data.length; i++) {
+        const ch = data[i], code = ch.charCodeAt(0);
+        if (code === 13) {
+          this._onEnter();
+        } else if (code === 9) {
+          this.handleTab();
+        } else if (code === 127 || code === 8) {
+          this.backspaceAtCursor();
+        } else if (code === 3) {
+          this.writeln('^C'); this._exitCurrentContext();
+        } else if (code === 1) {  // Ctrl+A → Home
+          this.cursorHome();
+        } else if (code === 5) {  // Ctrl+E → End
+          this.cursorEnd();
+        } else if (code === 11) { // Ctrl+K → kill to end of line (within current logical line)
+          this.killToEnd();
+        } else if (code === 21) { // Ctrl+U → kill to start of line
+          this.killToStart();
+        } else if (code >= 32) {
+          this.insertAtCursor(ch);
+        }
+      }
+    }
+
+    /** Insert a single character at cursorPos and advance cursor. Optimization:
+     *  if inserting at end of buffer (most common case), avoid full redraw. */
+    insertAtCursor(ch) {
+      if (this.cursorPos === this.inputBuffer.length) {
+        // Append: simple write, no redraw needed.
+        this.inputBuffer += ch;
+        this.cursorPos += 1;
+        this.write(ch);
+      } else {
+        // Mid-line insert: needs redraw to push the rest of the buffer right.
+        this.inputBuffer = this.inputBuffer.slice(0, this.cursorPos) + ch + this.inputBuffer.slice(this.cursorPos);
+        this.cursorPos += 1;
+        this.redrawInput();
+      }
+    }
+
+    /** Backspace: delete char before cursor. */
+    backspaceAtCursor() {
+      if (this.cursorPos === 0) return;
+      const charBeforeCursor = this.inputBuffer[this.cursorPos - 1];
+      this.inputBuffer = this.inputBuffer.slice(0, this.cursorPos - 1) + this.inputBuffer.slice(this.cursorPos);
+      this.cursorPos -= 1;
+      // If we deleted a newline OR we're not at the end, full redraw.
+      if (charBeforeCursor === '\n' || this.cursorPos !== this.inputBuffer.length) {
+        this.redrawInput();
+      } else {
+        this.write('\b \b');
+      }
+    }
+
+    /** Forward delete: remove char at cursor. */
+    deleteForward() {
+      if (this.cursorPos >= this.inputBuffer.length) return;
+      this.inputBuffer = this.inputBuffer.slice(0, this.cursorPos) + this.inputBuffer.slice(this.cursorPos + 1);
+      this.redrawInput();
+    }
+
+    /** Move cursor one position left. Wraps across newlines. */
+    cursorLeft() {
+      if (this.cursorPos === 0) return;
+      this.cursorPos -= 1;
+      this.redrawInput();
+    }
+
+    /** Move cursor one position right. Wraps across newlines. */
+    cursorRight() {
+      if (this.cursorPos >= this.inputBuffer.length) return;
+      this.cursorPos += 1;
+      this.redrawInput();
+    }
+
+    /** Home: move to start of CURRENT logical line (after the last \n before cursor). */
+    cursorHome() {
+      const before = this.inputBuffer.slice(0, this.cursorPos);
+      const lastNewline = before.lastIndexOf('\n');
+      this.cursorPos = lastNewline + 1; // +1 lands us right after the \n; if -1 → 0
+      this.redrawInput();
+    }
+
+    /** End: move to end of CURRENT logical line. */
+    cursorEnd() {
+      const after = this.inputBuffer.slice(this.cursorPos);
+      const nextNewline = after.indexOf('\n');
+      this.cursorPos = nextNewline === -1 ? this.inputBuffer.length : this.cursorPos + nextNewline;
+      this.redrawInput();
+    }
+
+    /** Ctrl+K: delete from cursor to end of current logical line. */
+    killToEnd() {
+      const after = this.inputBuffer.slice(this.cursorPos);
+      const nextNewline = after.indexOf('\n');
+      const killTo = nextNewline === -1 ? this.inputBuffer.length : this.cursorPos + nextNewline;
+      if (killTo === this.cursorPos) return;
+      this.inputBuffer = this.inputBuffer.slice(0, this.cursorPos) + this.inputBuffer.slice(killTo);
+      this.redrawInput();
+    }
+
+    /** Ctrl+U: delete from start of current logical line to cursor. */
+    killToStart() {
+      const before = this.inputBuffer.slice(0, this.cursorPos);
+      const lastNewline = before.lastIndexOf('\n');
+      const killFrom = lastNewline + 1;
+      if (killFrom === this.cursorPos) return;
+      this.inputBuffer = this.inputBuffer.slice(0, killFrom) + this.inputBuffer.slice(this.cursorPos);
+      this.cursorPos = killFrom;
+      this.redrawInput();
+    }
+
+    _pushHistory(l) {
+      const last = this.history[this.history.length - 1];
+      if (l !== last) this.history.push(l);
+      this.historyIdx = this.history.length;
+    }
+    historyPrev() { if (!this.history.length || this.historyIdx <= 0) return; this.historyIdx -= 1; this._replaceBuffer(this.history[this.historyIdx] || ''); }
+    historyNext() { if (this.historyIdx >= this.history.length) return; this.historyIdx += 1; const v = this.historyIdx >= this.history.length ? '' : this.history[this.historyIdx]; this._replaceBuffer(v); }
+    _replaceBuffer(s) {
+      // Multi-line-safe: always full redraw.
+      this.inputBuffer = s;
+      this.cursorPos = s.length;
+      this.redrawInput();
+    }
+    handleTab() {
+      // TRACK mode: Tab inserts 4 spaces so users can indent multi-line queries
+      // (standard SQL/Python convention). No smart autocomplete here — queries
+      // don't have a fixed command set to complete against.
+      if (this.mode === 'TRACK') {
+        for (let i = 0; i < 4; i++) this.insertAtCursor(' ');
+        return;
+      }
+      if (this.mode !== 'IDLE') return;
+      const matches = COMMANDS_IDLE.filter(c => c.startsWith(this.inputBuffer));
+      if (matches.length === 1) {
+        const add = matches[0].slice(this.inputBuffer.length) + ' ';
+        this.inputBuffer += add;
+        this.cursorPos = this.inputBuffer.length;
+        this.write(add);
+      }
+      else if (matches.length > 1) {
+        this.writeln('');
+        this.writeln(this.C.dim + '  ' + matches.join('  ') + this.C.reset);
+        this.writePrompt();
+        this.cursorPos = this.inputBuffer.length;
+        this.write(this.inputBuffer);
+      }
+    }
+    _exitCurrentContext() {
+      this.inputBuffer='';
+      this.cursorPos = 0;
+      this.mode='IDLE';
+      this.currentQ=null;
+      this.prompt='GHOST> ';
+      this.updateHeader();
+      this.ui.renderActiveQuestion(null);
+      this.updateActionBar();
+      this.writePrompt();
+    }
+
+    /** v3.7: Enter behavior.
+     *  - TRACK mode: insert newline at cursor (NOT always at end). Never executes.
+     *  - IDLE / other modes: Enter submits the line. */
+    _onEnter() {
+      if (this.mode === 'TRACK') {
+        // Insert \n at cursor position. If cursor is at end, fast path; else redraw.
+        if (this.cursorPos === this.inputBuffer.length) {
+          this.inputBuffer += '\n';
+          this.cursorPos += 1;
+          this.term.write('\r\n');
+          this.writeContinuationPrompt();
+          this.renderedLines += 1;
+        } else {
+          this.inputBuffer = this.inputBuffer.slice(0, this.cursorPos) + '\n' + this.inputBuffer.slice(this.cursorPos);
+          this.cursorPos += 1;
+          this.redrawInput();
+        }
+        return;
+      }
+      // IDLE / CONFIRM_RESET / IMPORT: Enter submits the line.
+      this.write('\r\n');
+      const line = this.inputBuffer; this.inputBuffer = ''; this.cursorPos = 0;
+      if (line.trim()) this._pushHistory(line);
+      this.handleLine(line);
+    }
+
+    /** Return the trimmed meta-command text if `buf` is a recognized
+     *  single-line meta-command for the current track, else null. */
+    _tryMetaCommand(buf) {
+      const trimmed = buf.trim();
+      if (!trimmed || trimmed.includes('\n')) return null;
+      const lower = trimmed.toLowerCase();
+      const track = this.state.getActiveTrack();
+      const metaWords = ['exit','quit','hint','schema','help','clear','cls'];
+      if (metaWords.includes(lower)) return trimmed;
+      if (track === 'sql') {
+        if (lower === 'tables') return trimmed;
+        if (lower.startsWith('describe ') || lower.startsWith('peek ')) return trimmed;
+      }
+      return null;
+    }
+
+    /** Run button / Ctrl+Enter: execute current buffer as a preview. */
+    async doRun() {
+      if (this.mode !== 'TRACK' || !this.currentQ) return;
+      const buf = this.inputBuffer;
+      if (!buf.trim()) {
+        this.term.write('\r\n');
+        this.writeln(this.C.dim + '  Type your query first, then Run.' + this.C.reset);
+        this.writePrompt();
+        return;
+      }
+      // Meta-commands (exit, hint, schema, help, clear, tables, describe, peek)
+      // are handled by handleAnswer regardless of which action button invoked them.
+      const metaCmd = this._tryMetaCommand(buf);
+      if (metaCmd) {
+        this.term.write('\r\n');
+        this.inputBuffer = ''; this.cursorPos = 0;
+        this.renderedLines = 1;
+        this._pushHistory(metaCmd);
+        await this.handleAnswer(metaCmd);
+        return;
+      }
+      this.term.write('\r\n');
+      this.inputBuffer = ''; this.cursorPos = 0;
+      this.renderedLines = 1;
+      await this.runPreview(buf);
+      // Preserve the user's buffer so they can edit or Submit without retyping.
+      this.inputBuffer = buf;
+      this.cursorPos = buf.length;
+      this.redrawInput();
+    }
+
+    /** Submit button / Ctrl+Shift+Enter: grade the current buffer. */
+    async doSubmit() {
+      if (this.mode !== 'TRACK' || !this.currentQ) return;
+      const buf = this.inputBuffer;
+      if (!buf.trim()) {
+        this.term.write('\r\n');
+        this.writeln(this.C.dim + '  Type your answer first, then Submit.' + this.C.reset);
+        this.writePrompt();
+        return;
+      }
+      // Meta-commands don't grade — they execute. Same as Run for these.
+      const metaCmd = this._tryMetaCommand(buf);
+      if (metaCmd) {
+        this.term.write('\r\n');
+        this.inputBuffer = ''; this.cursorPos = 0;
+        this.renderedLines = 1;
+        this._pushHistory(metaCmd);
+        await this.handleAnswer(metaCmd);
+        return;
+      }
+      this.term.write('\r\n');
+      this.inputBuffer = ''; this.cursorPos = 0;
+      this.renderedLines = 1;
+      await this._gradeInput(buf);
+    }
+
+    /** Hint button: show the active question's hint. */
+    showHint() {
+      if (this.mode !== 'TRACK' || !this.currentQ) return;
+      const h = this.currentQ.hint;
+      this.term.write('\r\n');
+      this.writeln(this.C.dim + '  💡 ' + (h || 'No hint available for this question.') + this.C.reset);
+      this.writePrompt();
+      this.redrawInput();
+    }
+
+    async _gradeInput(userInput) {
+      const track = this.state.getActiveTrack();
+      const engine = track === 'python' ? this.py : this.sql;
+      const q = this.currentQ;
+      let result;
+      try { result = await engine.evaluate(userInput, q); }
+      catch (e) { result = { ok:false, detail:`engine error: ${e.message || e}` }; }
+
+      this.state.recordAttempt(result.ok);
+      if (result.ok) {
+        this.state.markComplete(track, q.id);
+        this.state.logActivity('correct', q.id);
+        const tag = result.degraded ? ' (degraded)' : '';
+        this.writeln(this.C.green + '  ✓ Submitted. Correct.' + this.C.reset + this.C.dim + tag + this.C.reset);
+        const tier = this.state.getCurrentTier(track);
+        const done = this.state.countCompleteInTier(track, tier);
+        this.writeln(`  ${this.C.dim}Progress: ${done}/${GATE_SIZE} in ${TIER_LABELS[tier]}${this.C.reset}`);
+        this.writeln('');
+        this.inputBuffer = ''; this.cursorPos = 0;
+        this.updateHeader();
+        this.ui.renderAll(this);
+        this.updateActionBar();
+        this.serveNextQuestion();
+      } else {
+        this.state.logActivity('incorrect', q.id);
+        this.writeln(this.C.red + '  ✗ Incorrect.' + this.C.reset);
+        if (result.detail) this.writeln(`  ${this.C.dim}${result.detail}${this.C.reset}`);
+        this.writeln(this.C.dim + '  Revise your answer and try again (your query is preserved below).' + this.C.reset);
+        this.inputBuffer = userInput;
+        this.cursorPos = userInput.length;
+        this.ui.renderAll(this);
+        this.updateActionBar();
+        this.writePrompt();
+        this.redrawInput();
+      }
+    }
+
+    /** Enable/disable Run/Submit/Hint buttons based on current state. */
+    updateActionBar() {
+      const inTrack = this.mode === 'TRACK';
+      const hasQ = !!this.currentQ;
+      const btnRun    = document.getElementById('btn-run');
+      const btnSubmit = document.getElementById('btn-submit');
+      const btnHint   = document.getElementById('btn-hint');
+      const status    = document.getElementById('action-status');
+      if (!btnRun || !btnSubmit || !btnHint || !status) return;
+
+      btnRun.disabled    = !(inTrack && hasQ);
+      btnSubmit.disabled = !(inTrack && hasQ);
+      btnHint.disabled   = !(inTrack && hasQ && this.currentQ && this.currentQ.hint);
+
+      if (inTrack && hasQ) {
+        const track = this.state.getActiveTrack();
+        const tier = this.state.getCurrentTier(track);
+        const done = this.state.countCompleteInTier(track, tier);
+        status.textContent = `${track.toUpperCase()} · ${TIER_LABELS[tier]} · Q ${done + 1} of ${GATE_SIZE}`;
+      } else {
+        status.textContent = 'Start a track to enable Run / Submit.';
+      }
+    }
+
+    async handleLine(line) {
+      const input = line.trim();
+      if (this.mode === 'IDLE')          await this.handleCommand(input);
+      else if (this.mode === 'TRACK')    await this.handleAnswer(input);
+      else if (this.mode === 'CONFIRM_RESET') await this.handleConfirmReset(input);
+      else if (this.mode === 'IMPORT')   await this.handleImport(input);
+    }
+
+    async handleCommand(input) {
+      if (!input) { this.writePrompt(); return; }
+      const [cmd, ...rest] = input.split(/\s+/);
+      switch (cmd.toLowerCase()) {
+        case 'help':    this.cmdHelp();            break;
+        case 'status':  this.cmdStatus();          break;
+        case 'schema':  this.cmdSchema();          break;
+        case 'start':   await this.cmdStart(rest[0]); return;
+        case 'clear': case 'cls': this.term.clear(); break;
+        case 'reset':   this.cmdReset();           return;
+        case 'export':  this.cmdExport();          break;
+        case 'import':  this.cmdImport(rest.join(' ')); return;
+        case 'exit':    this.writeln(this.C.dim + '  Not in a track.' + this.C.reset); break;
+        default:
+          this.writeln(this.C.red + `  Unknown command: ${cmd}` + this.C.reset);
+          this.writeln(this.C.dim + '  Type `help` for commands.' + this.C.reset);
+      }
+      this.writePrompt();
+    }
+
+    cmdHelp() {
+      const rows = [
+        ['help',          'Show this command list'],
+        ['status',        'Show current track, rank, and progress'],
+        ['start <track>', 'Begin a training track (python | sql)'],
+        ['schema',        'Show SQL training database schema'],
+        ['hint',          '(in-track) show hint for the active question'],
+        ['exit',          '(in-track) return to base terminal'],
+        ['clear',         'Clear the terminal'],
+        ['export',        'Dump progress as JSON'],
+        ['import <json>', 'Restore progress from exported JSON'],
+        ['reset',         'Wipe all saved progress'],
+      ];
+      this.writeln('');
+      this.writeln('  ' + this.C.bold + 'COMMANDS' + this.C.reset);
+      this.writeln('  ' + this.C.label + '────────' + this.C.reset);
+      rows.forEach(([c,d]) => this.writeln(`  ${this.C.amber}${c.padEnd(17)}${this.C.reset}${this.C.dim}${d}${this.C.reset}`));
+      this.writeln('');
+      this.writeln(this.C.dim + '  Tab = complete.  ↑/↓ = history.  Ctrl+C = abort.' + this.C.reset);
+      this.writeln('');
+    }
+
+    cmdStatus() {
+      const track = this.state.getActiveTrack();
+      this.writeln('');
+      this.writeln('  ' + this.C.bold + 'STATUS' + this.C.reset);
+      if (!track) this.writeln(this.C.dim + '  No active track. Start: start python | start sql' + this.C.reset);
+      else {
+        const tier  = this.state.getCurrentTier(track);
+        const done  = this.state.countCompleteInTier(track, tier);
+        const total = (QUESTIONS[track][tier] || []).length;
+        this.writeln(`  ${this.C.label}track: ${this.C.reset}${track.toUpperCase()}  ${this.C.label}rank: ${this.C.reset}${TIER_LABELS[tier]}  ${this.C.label}gate: ${this.C.reset}${done}/${GATE_SIZE}  ${this.C.label}authored: ${this.C.reset}${total}`);
+      }
+      this.writeln('');
+    }
+
+    cmdSchema() {
+      this.writeln('');
+      this.writeln('  ' + this.C.bold + 'GARAGE SHOP DB' + this.C.reset);
+      const rows = [
+        ['customers',   'id, name, phone'],
+        ['mechanics',   'id, name, specialty'],
+        ['vehicles',    'id, customer_id, make, model, year'],
+        ['work_orders', 'id, vehicle_id, mechanic_id, status, total_cost'],
+      ];
+      rows.forEach(([n,c]) => this.writeln(`  ${this.C.amber}${n.padEnd(14)}${this.C.reset}${this.C.dim}( ${c} )${this.C.reset}`));
+      this.writeln(this.C.dim + '  Seed: 10 customers (2 with NULL phone), 6 mechanics, 11 vehicles, 15 work_orders.' + this.C.reset);
+      this.writeln('');
+    }
+
+    async cmdStart(track) {
+      if (!track || !QUESTIONS[track]) {
+        this.writeln(this.C.red + '  Usage: start <python|sql>' + this.C.reset);
+        this.writePrompt(); return;
+      }
+      const engine = track === 'python' ? this.py : this.sql;
+      if (!engine.ready && !engine.failed) {
+        this.writeln(this.C.amber + `  >> ${track.toUpperCase()} engine loading…` + this.C.reset);
+        if (track === 'python') this.writeln(this.C.dim + '  (one-time Pyodide download ~10MB)' + this.C.reset);
+        await engine.init();
+        this.updateEngineStatus();
+      }
+      if (engine.failed && track === 'sql') {
+        this.writeln(this.C.red + `  SQL engine failed: ${engine.failReason}` + this.C.reset);
+        this.writePrompt(); return;
+      }
+      if (engine.failed && track === 'python') {
+        this.writeln(this.C.amber + `  Python runtime unavailable: ${engine.failReason}` + this.C.reset);
+        this.writeln(this.C.dim + '  Starting in DEGRADED mode (pattern-match only). Open on desktop for full execution.' + this.C.reset);
+      }
+
+      this.state.setActiveTrack(track);
+      this.state.logActivity('enter', `${track.toUpperCase()} track`);
+      this.updateHeader();
+      this.ui.renderAll(this);
+
+      const tier = this.state.getCurrentTier(track);
+      const done = this.state.countCompleteInTier(track, tier);
+      this.writeln('');
+      this.writeln(`  ${this.C.amber}>> ${track.toUpperCase()} TRACK ENGAGED${this.C.reset}  ${this.C.dim}(${TIER_LABELS[tier]}, ${done}/${GATE_SIZE})${this.C.reset}`);
+      this.writeln(this.C.dim + '  ' + this.C.amber + 'Enter = newline (never executes).' + this.C.reset + this.C.dim + ' Click ' + this.C.amber + '▶ RUN' + this.C.reset + this.C.dim + ' to preview, ' + this.C.green + '✓ SUBMIT' + this.C.reset + this.C.dim + ' to grade.' + this.C.reset);
+      this.writeln(this.C.dim + '  Shortcuts: Ctrl+Enter = Run · Ctrl+Shift+Enter = Submit' + this.C.reset);
+      this.writeln(this.C.dim + '  Meta-commands (exit, hint, schema, help, clear' + (track === 'sql' ? ', tables, describe <t>, peek <t>' : '') + ') run via ▶ RUN or Ctrl+Enter.' + this.C.reset);
+      this.writeln('');
+      this.mode = 'TRACK';
+      this.updateActionBar();
+      this.serveNextQuestion();
+    }
+
+    serveNextQuestion() {
+      const track = this.state.getActiveTrack();
+      const q     = this.state.getNextQuestion(track);
+      if (!q) {
+        const tier = this.state.getCurrentTier(track);
+        const tierIdx = TIER_ORDER.indexOf(tier);
+        const next = TIER_ORDER[tierIdx + 1];
+        const cleared = this.state.countCompleteInTier(track, tier) >= GATE_SIZE;
+        if (cleared && next) {
+          this.writeln(`  ${this.C.green}✓ Tier cleared: ${TIER_LABELS[tier]}${this.C.reset}`);
+          this.writeln(`  ${this.C.amber}>> Rank unlocked: ${TIER_LABELS[next]}${this.C.reset}`);
+          this.state.logActivity('unlock', `${track.toUpperCase()} ${TIER_LABELS[next]}`);
+        } else if (cleared && !next) {
+          this.writeln(`  ${this.C.green}✓ All tiers cleared. Master rank achieved.${this.C.reset}`);
+          this.state.logActivity('unlock', `${track.toUpperCase()} MASTERED`);
+        } else {
+          this.writeln(`  ${this.C.dim}No more questions authored for ${TIER_LABELS[tier]}.${this.C.reset}`);
+        }
+        this.writeln('');
+        this.mode = 'IDLE'; this.prompt = 'GHOST> '; this.currentQ = null;
+        this.updateHeader(); this.ui.renderAll(this);
+        this.updateActionBar();
+        this.writePrompt();
+        return;
+      }
+      this.currentQ = q;
+      this.ui.renderActiveQuestion(q, track);
+      const tier = this.state.getCurrentTier(track);
+      const done = this.state.countCompleteInTier(track, tier);
+      this.writeln(`  ${this.C.label}[${track.toUpperCase()} / ${TIER_LABELS[tier].toUpperCase()} / ${done + 1}/${GATE_SIZE}]${this.C.reset}`);
+      this.writeln(`  ${this.C.bold}${q.prompt}${this.C.reset}`);
+      this.writeln('');
+      this.prompt = `${track}> `;
+      this.updateActionBar();
+      this.writePrompt();
+    }
+
+    async handleAnswer(input) {
+      // In v3.7 handleAnswer only handles meta-commands (typed single-line).
+      // Non-meta input is handled by doRun/doSubmit via buttons or Ctrl+Enter shortcuts.
+      const trimmed = input.trim();
+      const lower = trimmed.toLowerCase();
+      const track = this.state.getActiveTrack();
+
+      if (lower === 'exit' || lower === 'quit') {
+        this.writeln(this.C.dim + '  Exiting track.' + this.C.reset);
+        this.state.logActivity('exit', `${track.toUpperCase()}`);
+        this.mode = 'IDLE'; this.currentQ = null;
+        this.prompt = 'GHOST> ';
+        this.ui.renderActiveQuestion(null); this.ui.renderAll(this);
+        this.updateActionBar();
+        this.writePrompt(); return;
+      }
+      if (lower === 'hint') {
+        const h = this.currentQ && this.currentQ.hint;
+        this.writeln(this.C.dim + '  💡 ' + (h || 'No hint available. Reference schema with `schema`.') + this.C.reset);
+        this.writePrompt(); return;
+      }
+      if (lower === 'schema') { this.cmdSchema(); this.writePrompt(); return; }
+      if (lower === 'help') { this.cmdInTrackHelp(); return; }
+      if (lower === 'clear' || lower === 'cls') {
+        this.term.clear(); this.writePrompt(); return;
+      }
+
+      // SQL-only inspection commands.
+      if (track === 'sql') {
+        if (lower === 'tables') { await this.cmdTables(); return; }
+        if (lower.startsWith('describe ')) { await this.cmdDescribe(trimmed.slice(9).trim()); return; }
+        if (lower.startsWith('peek ')) { await this.cmdPeek(trimmed.slice(5).trim()); return; }
+      }
+
+      // Shouldn't reach here in normal flow because _onEnter only routes meta-commands.
+      // Defensive: just show the prompt again.
+      this.writePrompt();
+    }
+
+    /** Run the user's query/code and display results. Saves input for `submit`. */
+    async runPreview(userInput) {
+      const track = this.state.getActiveTrack();
+      const engine = track === 'python' ? this.py : this.sql;
+      const q = this.currentQ;
+      try {
+        if (track === 'sql') {
+          const res = await engine.preview(userInput);
+          if (res.error) {
+            this.writeln(this.C.red + '  SQL error: ' + this.C.reset + this.C.dim + res.error + this.C.reset);
+            this.writePrompt(); return;
+          }
+          this.renderSqlTable(res.columns, res.rows);
+        } else {
+          const res = await engine.preview(userInput, q);
+          if (res.error) {
+            this.writeln(this.C.red + '  Error:' + this.C.reset);
+            res.error.split('\n').forEach(l => this.writeln('  ' + this.C.dim + l + this.C.reset));
+            this.writePrompt(); return;
+          }
+          const hasStdout = res.stdout && res.stdout.length;
+          if (hasStdout) {
+            this.writeln(this.C.label + '  stdout:' + this.C.reset);
+            res.stdout.replace(/\n$/, '').split('\n').forEach(l => this.writeln('  ' + this.C.dim + l + this.C.reset));
+          }
+          if (res.probe) {
+            if (res.probe.undef) {
+              this.writeln(this.C.dim + `  (variable '${res.probe.label}' not defined yet)` + this.C.reset);
+            } else if (res.probe.error) {
+              this.writeln(this.C.red + `  error evaluating ${res.probe.label}:` + this.C.reset);
+              res.probe.error.split('\n').forEach(l => this.writeln('  ' + this.C.dim + l + this.C.reset));
+            } else {
+              this.writeln(this.C.amber + `  ${res.probe.label} = ` + this.C.reset + this.C.dim + truncate(JSON.stringify(res.probe.value), 200) + this.C.reset);
+            }
+          }
+          if (!hasStdout && !res.probe) {
+            this.writeln(this.C.dim + '  (code ran; no output)' + this.C.reset);
+          }
+        }
+        this.writeln(this.C.dim + '  Click ' + this.C.green + '✓ SUBMIT' + this.C.reset + this.C.dim + ' (or Ctrl+Shift+Enter) to grade, or edit and Run again.' + this.C.reset);
+      } catch (e) {
+        this.writeln(this.C.red + `  Engine error: ${e.message || e}` + this.C.reset);
+      }
+      this.writePrompt();
+    }
+
+    cmdInTrackHelp() {
+      const track = this.state.getActiveTrack();
+      this.writeln('');
+      this.writeln('  ' + this.C.bold + 'IN-TRACK HELP' + this.C.reset);
+      this.writeln('');
+      this.writeln('  ' + this.C.amber + 'ANSWER FLOW' + this.C.reset);
+      const flow = [
+        ['▶ RUN button',          'Execute what you typed (query, or meta-command)'],
+        ['✓ SUBMIT button',       'Grade query as answer (meta-commands just execute)'],
+        ['💡 HINT button',        'Show the hint for the active question'],
+        ['Ctrl+Enter',            'Keyboard shortcut for RUN'],
+        ['Ctrl+Shift+Enter',      'Keyboard shortcut for SUBMIT'],
+        ['Enter',                 'Newline only — never executes'],
+        ['Shift+Enter',           'Newline (same as Enter)'],
+        ['Tab',                   'Insert 4 spaces for indentation'],
+      ];
+      flow.forEach(([c,d]) => this.writeln(`  ${this.C.amber}${c.padEnd(20)}${this.C.reset}${this.C.dim}${d}${this.C.reset}`));
+
+      this.writeln('');
+      this.writeln('  ' + this.C.amber + 'META-COMMANDS' + this.C.reset + this.C.dim + ' (type alone + ' + this.C.reset + this.C.amber + '▶ RUN' + this.C.reset + this.C.dim + ' or Ctrl+Enter)' + this.C.reset);
+      const meta = [
+        ['hint',              'Show the hint for the current question'],
+        ['schema',            'Show the SQL database schema overview'],
+        ['exit',              'Return to base terminal'],
+        ['clear',             'Clear the screen'],
+      ];
+      if (track === 'sql') {
+        meta.push(
+          ['tables',           'List all tables in the training DB'],
+          ['describe <table>', 'Show columns, types, and constraints for a table'],
+          ['peek <table>',     'Sample the first 5 rows of a table']
+        );
+      }
+      meta.forEach(([c,d]) => this.writeln(`  ${this.C.amber}${c.padEnd(20)}${this.C.reset}${this.C.dim}${d}${this.C.reset}`));
+      this.writeln('');
+      this.writePrompt();
+    }
+
+    async cmdTables() {
+      const tables = await this.sql.listTables();
+      this.writeln('');
+      this.writeln('  ' + this.C.bold + 'TABLES' + this.C.reset);
+      if (!tables.length) {
+        this.writeln(this.C.dim + '  (none)' + this.C.reset);
+      } else {
+        tables.forEach(t => this.writeln(`  ${this.C.amber}${t}${this.C.reset}`));
+      }
+      this.writeln('');
+      this.writePrompt();
+    }
+
+    async cmdDescribe(tableName) {
+      if (!tableName) {
+        this.writeln(this.C.dim + '  Usage: describe <table>' + this.C.reset);
+        this.writePrompt(); return;
+      }
+      const res = await this.sql.describeTable(tableName);
+      if (res.error) {
+        this.writeln(this.C.red + `  ${res.error}` + this.C.reset);
+        this.writePrompt(); return;
+      }
+      this.writeln('');
+      this.writeln('  ' + this.C.bold + `TABLE ${String(tableName).toUpperCase()}` + this.C.reset);
+      const nameW = Math.max(4, ...res.columns.map(c => String(c.name).length));
+      const typeW = Math.max(4, ...res.columns.map(c => String(c.type).length));
+      res.columns.forEach(c => {
+        const flags = [];
+        if (c.pk) flags.push('PRIMARY KEY');
+        if (c.notnull) flags.push('NOT NULL');
+        this.writeln(
+          `  ${this.C.amber}${String(c.name).padEnd(nameW)}${this.C.reset}  ` +
+          `${this.C.dim}${String(c.type).padEnd(typeW)}${this.C.reset}  ` +
+          `${this.C.label}${flags.join(' ')}${this.C.reset}`
+        );
+      });
+      this.writeln('');
+      this.writePrompt();
+    }
+
+    async cmdPeek(tableName) {
+      if (!tableName) {
+        this.writeln(this.C.dim + '  Usage: peek <table>' + this.C.reset);
+        this.writePrompt(); return;
+      }
+      // Validate table exists to avoid SQL injection via the identifier.
+      const tables = (await this.sql.listTables()).map(t => t.toLowerCase());
+      if (!tables.includes(String(tableName).toLowerCase())) {
+        this.writeln(this.C.red + `  No such table: ${tableName}` + this.C.reset);
+        this.writePrompt(); return;
+      }
+      const res = await this.sql.preview(`SELECT * FROM "${tableName}" LIMIT 5`);
+      if (res.error) {
+        this.writeln(this.C.red + `  ${res.error}` + this.C.reset);
+        this.writePrompt(); return;
+      }
+      this.writeln('');
+      this.writeln('  ' + this.C.bold + `PEEK ${String(tableName).toUpperCase()} (first 5 rows)` + this.C.reset);
+      this.renderSqlTable(res.columns, res.rows);
+      this.writePrompt();
+    }
+
+    /** Render an SQL result set as a column-aligned table (up to 10 rows). */
+    renderSqlTable(columns, rows) {
+      this.writeln('');
+      if (!columns || columns.length === 0 || !rows) {
+        this.writeln(this.C.dim + '  (no result set)' + this.C.reset);
+        this.writeln('');
+        return;
+      }
+      const MAX_ROWS = 10;
+      const MAX_COL_W = 24;
+      const shown = rows.slice(0, MAX_ROWS);
+      // Compute per-column width, capped.
+      const widths = columns.map((c, i) => {
+        let w = String(c).length;
+        shown.forEach(r => {
+          const s = r[i] === null ? 'NULL' : String(r[i]);
+          w = Math.max(w, Math.min(MAX_COL_W, s.length));
+        });
+        return w;
+      });
+      const fmt = (v, w) => {
+        let s = v === null ? 'NULL' : String(v);
+        if (s.length > w) s = s.slice(0, Math.max(1, w - 1)) + '…';
+        return s.padEnd(w);
+      };
+      // Header
+      this.writeln('  ' + columns.map((c, i) => this.C.amber + fmt(c, widths[i]) + this.C.reset).join('  '));
+      this.writeln('  ' + widths.map(w => this.C.label + '─'.repeat(w) + this.C.reset).join('  '));
+      // Rows
+      shown.forEach(r => {
+        const line = r.map((v, i) => {
+          const s = fmt(v, widths[i]);
+          return (v === null ? this.C.label : this.C.dim) + s + this.C.reset;
+        }).join('  ');
+        this.writeln('  ' + line);
+      });
+      if (rows.length > MAX_ROWS) {
+        this.writeln(this.C.label + `  … ${rows.length - MAX_ROWS} more row(s) hidden` + this.C.reset);
+      }
+      this.writeln(this.C.dim + `  → ${rows.length} row${rows.length === 1 ? '' : 's'}` + this.C.reset);
+      this.writeln('');
+    }
+
+    cmdReset() {
+      // Concrete count so the user sees exactly what they're about to lose.
+      const pyDone  = TIER_ORDER.reduce((sum, ti) => sum + this.state.countCompleteInTier('python', ti), 0);
+      const sqlDone = TIER_ORDER.reduce((sum, ti) => sum + this.state.countCompleteInTier('sql',    ti), 0);
+      const total = pyDone + sqlDone;
+      if (total === 0) {
+        this.writeln(this.C.dim + '  No completed questions yet — nothing to wipe.' + this.C.reset);
+        this.writeln(this.C.dim + '  Type `yes` to clear activity log anyway, anything else to cancel.' + this.C.reset);
+      } else {
+        this.writeln(this.C.red + `  This wipes ${total} completed question${total === 1 ? '' : 's'} across PYTHON (${pyDone}) and SQL (${sqlDone}).` + this.C.reset);
+        this.writeln(this.C.dim + '  Type `yes` to confirm, anything else to cancel.' + this.C.reset);
+      }
+      this.mode = 'CONFIRM_RESET'; this.prompt = 'confirm> '; this.writePrompt();
+    }
+    async handleConfirmReset(input) {
+      if (input.toLowerCase() === 'yes') {
+        this.state.resetAll();
+        this.state.logActivity('reset', 'progress wiped');
+        this.writeln(this.C.green + '  Progress wiped.' + this.C.reset);
+      } else this.writeln(this.C.dim + '  Reset cancelled.' + this.C.reset);
+      this.mode = 'IDLE'; this.prompt = 'GHOST> ';
+      this.updateHeader(); this.ui.renderAll(this); this.writePrompt();
+    }
+
+    cmdExport() {
+      const json = this.state.exportJson();
+      this.writeln('');
+      this.writeln('  ' + this.C.bold + 'PROGRESS EXPORT' + this.C.reset);
+      this.writeln('  ' + this.C.dim + '  Copy the line below. To restore: `import <paste>`.' + this.C.reset);
+      this.writeln('  ' + json);
+      this.writeln('');
+    }
+    cmdImport(payload) {
+      if (!payload) {
+        this.writeln(this.C.dim + '  Paste JSON on the next line, or type `cancel`:' + this.C.reset);
+        this.mode = 'IMPORT'; this.prompt = 'import> '; this.writePrompt(); return;
+      }
+      this._doImport(payload); this.writePrompt();
+    }
+    async handleImport(input) {
+      if (input.toLowerCase() === 'cancel' || !input) this.writeln(this.C.dim + '  Import cancelled.' + this.C.reset);
+      else this._doImport(input);
+      this.mode = 'IDLE'; this.prompt = 'GHOST> ';
+      this.updateHeader(); this.ui.renderAll(this); this.writePrompt();
+    }
+    _doImport(json) {
+      try {
+        this.state.importJson(json);
+        this.writeln(this.C.green + '  ✓ Progress imported.' + this.C.reset);
+        this.updateHeader(); this.ui.renderAll(this);
+      } catch (e) { this.writeln(this.C.red + `  Import failed: ${e.message || e}` + this.C.reset); }
+    }
+  }
+
+  /* ============================================================
+     BOOT
+     ============================================================ */
+  window.addEventListener('DOMContentLoaded', () => {
+    const term = new Terminal({
+      fontFamily: '"DM Mono", Menlo, Monaco, "Courier New", monospace',
+      fontSize: 13,
+      lineHeight: 1.3,
+      cursorBlink: true,
+      cursorStyle: 'block',
+      convertEol: true,
+      theme: {
+        background:'#000000', foreground:'#e8a020', cursor:'#e8a020', cursorAccent:'#000000',
+        selectionBackground:'#3a2a0a',
+        black:'#000000', red:'#ef4444', green:'#3ab86e', yellow:'#e8a020', blue:'#4b8ef5',
+        magenta:'#a06ef0', cyan:'#3cb8c0', white:'#e8a020',
+        brightBlack:'#6a6a6a', brightRed:'#ff6b6b', brightGreen:'#6ee7b7', brightYellow:'#fbbf24',
+        brightBlue:'#60a5fa', brightMagenta:'#c4b5fd', brightCyan:'#67e8f9', brightWhite:'#e8a020',
+      },
+    });
+    const fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(document.getElementById('terminal'));
+    fitAddon.fit();
+    // ResizeObserver catches layout shifts from CSS breakpoints (rail hide/show),
+    // not just window resize. Falls back to the resize event where unsupported.
+    const termEl = document.querySelector('.terminal-container');
+    if (window.ResizeObserver && termEl) {
+      const ro = new ResizeObserver(() => {
+        try { fitAddon.fit(); } catch (_) {}
+      });
+      ro.observe(termEl);
+    }
+    window.addEventListener('resize', () => {
+      try { fitAddon.fit(); } catch (_) {}
+    });
+
+    const state = new GameState();
+    const py    = new PythonEngine();
+    const sql   = new SqlEngine();
+    const ui    = new UI(state);
+    const app   = new TerminalApp(term, state, py, sql, ui);
+
+    term.onData(d => app.onData(d));
+
+    // v3.7: keyboard shortcuts in the terminal.
+    //   Enter:                 newline in TRACK mode (submits line in IDLE)
+    //   Shift+Enter:           newline (same as Enter)
+    //   Ctrl/Cmd+Enter:        Run — executes query OR meta-command (exit, schema, etc.)
+    //   Ctrl/Cmd+Shift+Enter:  Submit — grades query OR executes meta-command
+    //
+    // v3.7 fix: we handle ALL Enter variants in TRACK mode here (not just modified ones)
+    // and call preventDefault + stopPropagation to fully suppress xterm's own \r processing.
+    // Prior versions returned true for plain Enter, letting xterm fire \r via onData — that
+    // occasionally double-fired with Ctrl+Enter on some browsers, producing a stray newline
+    // after a Run/Submit. Now every Enter press routes through exactly one path.
+    term.attachCustomKeyEventHandler((e) => {
+      if (e.type !== 'keydown') return true;
+      const isEnter = e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter';
+      if (!isEnter) return true;
+
+      // In IDLE/CONFIRM/IMPORT modes, let xterm handle Enter normally (onData \r → submit line).
+      if (app.mode !== 'TRACK') return true;
+
+      // Full suppression: we own this key in TRACK mode.
+      e.preventDefault();
+      e.stopPropagation();
+
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
+        app.doSubmit();
+      } else if (e.ctrlKey || e.metaKey) {
+        app.doRun();
+      } else {
+        // Plain Enter or Shift+Enter → newline at cursor (handles mid-buffer insertion correctly).
+        app._onEnter();
+      }
+      return false;
+    });
+
+    // Wire the three action buttons. `mousedown` preventDefault keeps xterm focused
+    // so the on-screen keyboard stays open on iOS when the user taps a button.
+    const wireBtn = (id, fn) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('mousedown', e => e.preventDefault());
+      el.addEventListener('click', fn);
+    };
+    wireBtn('btn-run',    () => { app.doRun();    term.focus(); });
+    wireBtn('btn-submit', () => { app.doSubmit(); term.focus(); });
+    wireBtn('btn-hint',   () => { app.showHint(); term.focus(); });
+
+    app.boot();
+    app.updateEngineStatus();
+    app.updateActionBar();
+
+    py.init().finally(() => app.updateEngineStatus());
+    sql.init().finally(() => app.updateEngineStatus());
+
+    // Loading spinner in footer engines line
+    const SPIN = ['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'];
+    let spinIdx = 0;
+    setInterval(() => {
+      const anyLoading = (!py.ready && !py.failed) || (!sql.ready && !sql.failed);
+      if (anyLoading) {
+        const c = SPIN[spinIdx++ % SPIN.length];
+        const pyLabel  = py.ready  ? 'ready'    : (py.failed  ? 'DEGRADED' : 'loading');
+        const sqlLabel = sql.ready ? 'ready'    : (sql.failed ? 'FAILED'   : 'loading');
+        document.getElementById('footer-engines').textContent = `${c} engines · python: ${pyLabel}  ·  sql: ${sqlLabel}`;
+      }
+    }, 90);
+
+    // Clock
+    const clock = document.getElementById('footer-clock');
+    const tick = () => {
+      const d = new Date();
+      clock.textContent = String(d.getHours()).padStart(2,'0') + ':' +
+                          String(d.getMinutes()).padStart(2,'0') + ':' +
+                          String(d.getSeconds()).padStart(2,'0');
+    };
+    tick();
+    setInterval(tick, 1000);
+
+    // KPI + session timer refresh
+    setInterval(() => ui.renderKpis(), 1000);
+  });
+  </script>
+</body>
+</html>
