@@ -1868,25 +1868,27 @@
     rust: {
       introductory: [
         { "id":"rs_intro_01",
-          "prompt":"Bind a variable named count to 0.",
+          "prompt":"Bind a variable named shop_open to true.",
+          "hint":"Rust booleans are lowercase: true and false (not True/False).",
           "assertion":{
             "type":"pattern",
-            "required":["let","count","="],
+            "required":["let","shop_open","="],
             "forbidden":[],
-            "structure":"let count = 0;",
-            "alternatives":RUST_ALTERNATIVES_LIBRARY.NUMERIC_LITERAL_SUFFIXES
+            "structure":"let shop_open = true;",
+            "alternatives":{}
           },
           "tags":[],
           "qa":{
-            "accept":["let count = 0;","let count = 0i32;","let count = 0_i32;"],
+            "accept":["let shop_open = true;","let shop_open=true;","let shop_open = true ;"],
             "reject":[
-              { "input":"count = 0;",      "expect_msg":"missing `let`" },
-              { "input":"let count = 0",   "expect_msg":"missing `;`" },
-              { "input":"let count == 0;", "expect_msg":"structure mismatch" }
+              { "input":"let shop_open = True;", "expect_msg":"structure mismatch" },
+              { "input":"let shop_open = true",  "expect_msg":"missing `;`" },
+              { "input":"shop_open = true;",     "expect_msg":"missing `let`" }
             ]
           } },
         { "id":"rs_intro_02",
           "prompt":"Bind a mutable variable named counter to 0.",
+          "hint":"Rust requires you to mark variables as mutable explicitly with `mut`.",
           "assertion":{
             "type":"pattern",
             "required":["let","counter","="],
@@ -1905,6 +1907,7 @@
           } },
         { "id":"rs_intro_03",
           "prompt":"Bind a variable named rate of type f64 to 0.0.",
+          "hint":"Use `: f64` after the name to specify the type. Rust requires the decimal for f64 literals.",
           "assertion":{
             "type":"pattern",
             "required":["let","rate","f64"],
@@ -1923,6 +1926,7 @@
           } },
         { "id":"rs_intro_04",
           "prompt":"Print the string Shop open using println!.",
+          "hint":"`println!` is a macro (note the `!`). String literals use double quotes.",
           "assertion":{
             "type":"pattern",
             "required":["println!","\"Shop open\"",";"],
@@ -1941,6 +1945,7 @@
           } },
         { "id":"rs_intro_05",
           "prompt":"Define an immutable Vec<i32> named values containing 1, 2, 3.",
+          "hint":"`Vec<T>` is Rust's growable array. The `vec![]` macro is the idiomatic constructor.",
           "assertion":{
             "type":"pattern",
             "required":["let","values","Vec<i32>","vec!","1","2","3"],
@@ -1969,6 +1974,7 @@
       experienced: [
         { "id":"rs_exp_01",
           "prompt":"Define a trait named Greeter with a method greet that takes &self and returns String.",
+          "hint":"Traits define interfaces — methods that types can implement. `&self` borrows the instance.",
           "assertion":{
             "type":"pattern",
             "required":["trait","Greeter","fn","greet","&self","->","String"],
@@ -1991,6 +1997,7 @@
           } },
         { "id":"rs_exp_02",
           "prompt":"Implement Greeter for a type Person whose greet method returns the String \"hi\". Use String::from or \"hi\".to_string().",
+          "hint":"`impl Trait for Type` defines how a type satisfies a trait. Either `String::from(\"hi\")` or `\"hi\".to_string()` works.",
           "assertion":{
             "type":"pattern",
             "required":["impl","Greeter","Person","fn","greet","&self","->","String"],
@@ -2015,6 +2022,7 @@
           } },
         { "id":"rs_exp_03",
           "prompt":"Define a generic function identity that takes T and returns T.",
+          "hint":"Type parameters go in angle brackets after the function name. The body just returns its argument.",
           "assertion":{
             "type":"pattern",
             "required":["fn","identity","<T>","->","T"],
@@ -2037,6 +2045,7 @@
           } },
         { "id":"rs_exp_04",
           "prompt":"Define a struct Doc that holds a reference to a string slice with lifetime 'a.",
+          "hint":"Structs holding references must declare a lifetime parameter. The convention is `'a`.",
           "assertion":{
             "type":"pattern",
             "required":["struct","Doc","<'a>","&'a str"],
@@ -2059,6 +2068,7 @@
           } },
         { "id":"rs_exp_05",
           "prompt":"Define a generic function same_type that takes two T values where T: Copy, and returns a (T, T) tuple of them.",
+          "hint":"Multiple type parameters share the same trait bound via `<T: Copy>`. Tuples use parentheses.",
           "assertion":{
             "type":"pattern",
             "required":["fn","same_type","<T: Copy>","->","(T, T)","(a, b)"],
