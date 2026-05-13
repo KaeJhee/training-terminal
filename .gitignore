@@ -14,3 +14,10 @@ desktop.ini
 *.log
 .tmp/
 node_modules/
+
+# Build artifacts
+src.zip
+*.zip
+
+# Agent scratch
+.work/
