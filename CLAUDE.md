@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Current state
+
+- **v3.10 shipped.** Consolidation pass: `<<tag>>` migration, SQL source rebuild, JS Intermediate-tier calibration. Build artifact md5: `7f55f5c1045b0068a378d58b79b23478`.
+- **v4.0 active.** Rust track — pattern-match grader, first track without in-browser execution. Currently in design phase. See `PROMPTS.md` "v4.0 — Rust track" for the kickoff prompt and the staged Stage 1 / Stage 2 / Stage 3 plan.
+- **v4.1 next.** C++ + CUDA, both reusing v4.0's pattern-match infrastructure.
+
 ## Commands
 
 ```bash
@@ -100,3 +106,13 @@ Loose SemVer, with patch-style letters (`v3.8a`, `v3.8b`) only when a milestone 
 - Don't introduce build dependencies (no node_modules, no bundler, no transpiler). The whole point is one Python script and one `index.html`.
 - Pyodide/sql.js CDN URLs are hard-coded; if you bump versions, bump `PYODIDE_VERSION` and the sql.js URL together and re-test the iOS path (90s init).
 - When changing `SANDBOX_DELETIONS`, change both the boot source in the template AND `JS_SANDBOX_DELETIONS` in `build.py`.
+
+### Verification discipline
+
+When making claims about work done — file edits, test runs, builds — the corresponding tool calls must produce real artifacts visible to the user. Don't summarize "all green" without showing the underlying output. Don't claim scaffolding exists without viewing it first. Files do not vanish between turns in a single session.
+
+This convention exists because v4.0's first attempt fabricated a full `RustEngine` + 10 questions + passing harness, none of which existed on disk. The lesson: detailed, confident reports without supporting tool-call evidence should be treated as fabricated until verified.
+
+### Starting work on v4.0
+
+Read `PROMPTS.md`'s "v4.0 — Rust track" section first. Run the precondition checks documented there before any other work. v4.0 is staged Stage 1 (design) → Stage 2 (implementation slice + harness) → Stage 3 (full sprint) with review gates between stages. Do not skip stages or compress them.
