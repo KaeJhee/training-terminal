@@ -694,6 +694,33 @@
   const MAX_ACTIVITY = 10;
 
   /* ============================================================
+     RUST_ALTERNATIVES_LIBRARY (v4.0 Stage 2)
+     Named alternatives groups. Questions reference these by name in their
+     pattern assertion's alternatives field. Strings are double-quoted
+     throughout so tests/qa_harness.py can parse this block as JSON.
+     STAGE2_RUST_ALTERNATIVES_LIBRARY_BEGIN
+     ============================================================ */
+  const RUST_ALTERNATIVES_LIBRARY = {
+    "CLOSURE_DEREF_VARIANTS": {
+      "|&w| w": ["|w| *w", "|&&w| w"]
+    },
+    "NUMERIC_LITERAL_SUFFIXES": {
+      "0":   ["0i32", "0_i32"],
+      "0.0": ["0.0f64", "0.0_f64"]
+    },
+    "STRING_TYPE_VARIANTS": {
+      "String": ["&str", "&String"]
+    },
+    "ITER_COLLECT_VARIANTS": {
+      ".collect()": [".collect::<Vec<_>>()", ".collect::<Vec<f64>>()", ".collect::<Vec<i32>>()"]
+    },
+    "RESULT_PROPAGATION": {
+      "?": [".unwrap()", ".expect(\"error\")"]
+    }
+  };
+  /* STAGE2_RUST_ALTERNATIVES_LIBRARY_END */
+
+  /* ============================================================
      CROSS-TERMINAL NAV
      Replace these `#` placeholders with your actual deployed URLs
      for the Garage / Portfolio / Budget terminals.
@@ -1837,6 +1864,225 @@
                     expected:[[0, 2], [0, 3, 2], [0, 1]] } },
     ],
     },
+    /* STAGE2_RUST_QUESTIONS_BEGIN */
+    rust: {
+      introductory: [
+        { "id":"rs_intro_01",
+          "prompt":"Bind a variable named count to 0.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","count","="],
+            "forbidden":[],
+            "structure":"let count = 0;",
+            "alternatives":RUST_ALTERNATIVES_LIBRARY.NUMERIC_LITERAL_SUFFIXES
+          },
+          "tags":[],
+          "qa":{
+            "accept":["let count = 0;","let count = 0i32;","let count = 0_i32;"],
+            "reject":[
+              { "input":"count = 0;",      "expect_msg":"missing `let`" },
+              { "input":"let count = 0",   "expect_msg":"missing `;`" },
+              { "input":"let count == 0;", "expect_msg":"structure mismatch" }
+            ]
+          } },
+        { "id":"rs_intro_02",
+          "prompt":"Bind a mutable variable named counter to 0.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","counter","="],
+            "forbidden":[],
+            "structure":"let mut counter = 0;",
+            "alternatives":RUST_ALTERNATIVES_LIBRARY.NUMERIC_LITERAL_SUFFIXES
+          },
+          "tags":["mutability"],
+          "qa":{
+            "accept":["let mut counter = 0;","let mut counter = 0i32;","let mut counter = 0_i32;"],
+            "reject":[
+              { "input":"let counter = 0;",    "expect_msg":"binding needs `mut`" },
+              { "input":"let mut counter = 0", "expect_msg":"missing `;`" },
+              { "input":"mut counter = 0;",    "expect_msg":"missing `let`" }
+            ]
+          } },
+        { "id":"rs_intro_03",
+          "prompt":"Bind a variable named rate of type f64 to 0.0.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","rate","f64"],
+            "forbidden":[],
+            "structure":"let rate: f64 = 0.0;",
+            "alternatives":RUST_ALTERNATIVES_LIBRARY.NUMERIC_LITERAL_SUFFIXES
+          },
+          "tags":[],
+          "qa":{
+            "accept":["let rate: f64 = 0.0;","let rate: f64 = 0.0f64;","let rate:f64=0.0;"],
+            "reject":[
+              { "input":"let rate = 0.0;",     "expect_msg":"missing `f64`" },
+              { "input":"let rate: f64 = 0.0", "expect_msg":"missing `;`" },
+              { "input":"rate: f64 = 0.0;",    "expect_msg":"missing `let`" }
+            ]
+          } },
+        { "id":"rs_intro_04",
+          "prompt":"Print the string Shop open using println!.",
+          "assertion":{
+            "type":"pattern",
+            "required":["println!","\"Shop open\"",";"],
+            "forbidden":[],
+            "structure":"println!(\"Shop open\");",
+            "alternatives":{}
+          },
+          "tags":["macros"],
+          "qa":{
+            "accept":["println!(\"Shop open\");","println! (\"Shop open\");","println!(  \"Shop open\"  );"],
+            "reject":[
+              { "input":"print!(\"Shop open\");",  "expect_msg":"missing `println!`" },
+              { "input":"println!(\"Shop open\")", "expect_msg":"missing `;`" },
+              { "input":"println!('Shop open');",  "expect_msg":"missing `\"Shop open\"`" }
+            ]
+          } },
+        { "id":"rs_intro_05",
+          "prompt":"Define an immutable Vec<i32> named values containing 1, 2, 3.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","values","Vec<i32>","vec!","1","2","3"],
+            "forbidden":["mut"],
+            "structure":"let values: Vec<i32> = vec![1, 2, 3];",
+            "alternatives":{}
+          },
+          "tags":[],
+          "forbid_reason":"the question asks for immutable; remove `mut`",
+          "qa":{
+            "accept":[
+              "let values: Vec<i32> = vec![1, 2, 3];",
+              "let values: Vec<i32> = vec![1,2,3];",
+              "let values:Vec<i32>=vec![1, 2, 3];",
+              "let values: Vec<i32> = vec![1, 2, 3,];"
+            ],
+            "reject":[
+              { "input":"let mut values: Vec<i32> = vec![1, 2, 3];", "expect_msg":"uses `mut`" },
+              { "input":"values: Vec<i32> = vec![1, 2, 3];",         "expect_msg":"missing `let`" },
+              { "input":"let values: Vec<i32> = vec![1, 2, 3]",      "expect_msg":"missing `;`" }
+            ]
+          } }
+      ],
+      amateur: [],
+      intermediate: [],
+      experienced: [
+        { "id":"rs_exp_01",
+          "prompt":"Define a trait named Greeter with a method greet that takes &self and returns String.",
+          "assertion":{
+            "type":"pattern",
+            "required":["trait","Greeter","fn","greet","&self","->","String"],
+            "forbidden":[],
+            "structure":"trait Greeter { fn greet(&self) -> String; }",
+            "alternatives":{}
+          },
+          "tags":["traits"],
+          "qa":{
+            "accept":[
+              "trait Greeter { fn greet(&self) -> String; }",
+              "trait Greeter{fn greet(&self)->String;}",
+              "trait Greeter { fn greet(&self) -> String ; }"
+            ],
+            "reject":[
+              { "input":"trait Greeter { fn greet(self) -> String; }", "expect_msg":"missing `&self`" },
+              { "input":"Greeter { fn greet(&self) -> String; }",      "expect_msg":"missing `trait`" },
+              { "input":"trait Greeter { greet(&self) -> String; }",   "expect_msg":"missing `fn`" }
+            ]
+          } },
+        { "id":"rs_exp_02",
+          "prompt":"Implement Greeter for a type Person whose greet method returns the String \"hi\". Use String::from or \"hi\".to_string().",
+          "assertion":{
+            "type":"pattern",
+            "required":["impl","Greeter","Person","fn","greet","&self","->","String"],
+            "forbidden":[],
+            "structure":"impl Greeter for Person { fn greet(&self) -> String { String::from(\"hi\") } }",
+            "alternatives":{
+              "String::from(\"hi\")":["\"hi\".to_string()","\"hi\".to_owned()"]
+            }
+          },
+          "tags":["traits"],
+          "qa":{
+            "accept":[
+              "impl Greeter for Person { fn greet(&self) -> String { String::from(\"hi\") } }",
+              "impl Greeter for Person { fn greet(&self) -> String { \"hi\".to_string() } }",
+              "impl Greeter for Person{fn greet(&self)->String{\"hi\".to_owned()}}"
+            ],
+            "reject":[
+              { "input":"impl Greeter Person { fn greet(&self) -> String { String::from(\"hi\") } }", "expect_msg":"missing `for <Type>` in impl block" },
+              { "input":"impl for Person { fn greet(&self) -> String { String::from(\"hi\") } }",    "expect_msg":"missing `Greeter`" },
+              { "input":"impl Greeter for Person { fn greet(&self) -> String { \"hi\" } }",          "expect_msg":"structure mismatch" }
+            ]
+          } },
+        { "id":"rs_exp_03",
+          "prompt":"Define a generic function identity that takes T and returns T.",
+          "assertion":{
+            "type":"pattern",
+            "required":["fn","identity","<T>","->","T"],
+            "forbidden":[],
+            "structure":"fn identity<T>(x: T) -> T { x }",
+            "alternatives":{}
+          },
+          "tags":["generics"],
+          "qa":{
+            "accept":[
+              "fn identity<T>(x: T) -> T { x }",
+              "fn identity<T>(x:T)->T{x}",
+              "fn identity<T> (x: T) -> T { x }"
+            ],
+            "reject":[
+              { "input":"fn identity(x: T) -> T { x }",     "expect_msg":"missing `<T>`" },
+              { "input":"identity<T>(x: T) -> T { x }",     "expect_msg":"missing `fn`" },
+              { "input":"fn identity<T>(x: T) -> T { x };", "expect_msg":"structure mismatch" }
+            ]
+          } },
+        { "id":"rs_exp_04",
+          "prompt":"Define a struct Doc that holds a reference to a string slice with lifetime 'a.",
+          "assertion":{
+            "type":"pattern",
+            "required":["struct","Doc","<'a>","&'a str"],
+            "forbidden":[],
+            "structure":"struct Doc<'a> { text: &'a str }",
+            "alternatives":{}
+          },
+          "tags":["lifetimes"],
+          "qa":{
+            "accept":[
+              "struct Doc<'a> { text: &'a str }",
+              "struct Doc<'a>{text:&'a str}",
+              "struct Doc<'a> { text: &'a str, }"
+            ],
+            "reject":[
+              { "input":"struct Doc { text: &'a str }",        "expect_msg":"missing `<'a>`" },
+              { "input":"struct Doc<'a> { text: &str }",       "expect_msg":"missing `&'a str`" },
+              { "input":"struct Doc<'a> { text: &'a String }", "expect_msg":"missing `&'a str`" }
+            ]
+          } },
+        { "id":"rs_exp_05",
+          "prompt":"Define a generic function same_type that takes two T values where T: Copy, and returns a (T, T) tuple of them.",
+          "assertion":{
+            "type":"pattern",
+            "required":["fn","same_type","<T: Copy>","->","(T, T)","(a, b)"],
+            "forbidden":["mut"],
+            "structure":"fn same_type<T: Copy>(a: T, b: T) -> (T, T) { (a, b) }",
+            "alternatives":{}
+          },
+          "tags":["generics","traits"],
+          "qa":{
+            "accept":[
+              "fn same_type<T: Copy>(a: T, b: T) -> (T, T) { (a, b) }",
+              "fn same_type<T:Copy>(a:T,b:T)->(T,T){(a,b)}",
+              "fn  same_type < T: Copy > (a: T, b: T) -> (T, T) { (a, b) }"
+            ],
+            "reject":[
+              { "input":"fn same_type<T>(a: T, b: T) -> (T, T) { (a, b) }",          "expect_msg":"missing `<T: Copy>`" },
+              { "input":"same_type<T: Copy>(a: T, b: T) -> (T, T) { (a, b) }",       "expect_msg":"missing `fn`" },
+              { "input":"fn same_type<T: Copy>(mut a: T, b: T) -> (T, T) { (a, b) }","expect_msg":"uses `mut`" }
+            ]
+          } }
+      ],
+      master: [],
+    },
+    /* STAGE2_RUST_QUESTIONS_END */
   };
 
   /* ============================================================
@@ -3061,6 +3307,226 @@ function truncate(s, n) {
 // Signal ready — useful for tests so they don't race with boot.
 PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
 `;
+
+  /* ============================================================
+     RustEngine — pattern-match grader (v4.0 Stage 2)
+     ============================================================
+     No execution. Grading is: forbidden → required → structure, in order.
+     First check to fail short-circuits with a grammar-lite refined message.
+
+     Whitespace normalization: outside string/char literals, collapse runs to
+     a single space, then drop spaces unless both adjacent characters are
+     word-ish ([A-Za-z0-9_']). Trailing commas before `)`, `]`, `}` are
+     dropped symmetrically. Lifetime apostrophes ('a, 'static) are part of
+     the token, not a literal delimiter.
+
+     Alternatives: whole-token substitution, longest-match-first, single-pass,
+     NOT recursive. Applies to user input only (required/forbidden stay
+     literal). The alternatives table is normalized through the same WS rule
+     at expansion time.
+
+     Stage 2 scope: engine, library, harness, 10 questions. Stage 3 wires
+     `start rust` into TerminalApp and adds the cheatsheet/tier content.
+     ============================================================ */
+  class RustEngine {
+    constructor() {
+      this.ready = true;
+      this.failed = false;
+      this.failReason = '';
+    }
+
+    async init() { /* synchronous — already ready */ }
+
+    async evaluate(userCode, question) {
+      const a = question.assertion;
+      if (!a || a.type !== 'pattern') {
+        return { ok: false, detail: 'RustEngine requires a pattern assertion.' };
+      }
+      const userNorm = RustEngine.normalize(userCode);
+      const tags = question.tags || [];
+
+      for (const f of (a.forbidden || [])) {
+        const fNorm = RustEngine.normalize(f);
+        if (fNorm && userNorm.indexOf(fNorm) !== -1) {
+          const reason = question.forbid_reason ? ' — ' + question.forbid_reason : '';
+          return { ok: false, detail: 'uses `' + f + '`' + reason };
+        }
+      }
+
+      for (const r of (a.required || [])) {
+        const rNorm = RustEngine.normalize(r);
+        if (rNorm && userNorm.indexOf(rNorm) === -1) {
+          return { ok: false, detail: 'missing `' + r + '`' };
+        }
+      }
+
+      const canonNorm = RustEngine.normalize(a.structure || '');
+      const reverseMap = RustEngine._buildReverseAltMap(a.alternatives || {});
+      const userSub = RustEngine._applyAlternatives(userNorm, reverseMap);
+      if (userSub === canonNorm) return { ok: true };
+
+      return { ok: false, detail: RustEngine._grammarLite(userSub, canonNorm, userCode, a, tags) };
+    }
+
+    async preview(userCode, question) {
+      const userNorm = RustEngine.normalize(userCode);
+      return {
+        stdout: '(no execution — Rust is graded by pattern match)\nnormalized: ' + userNorm,
+        probe: null,
+      };
+    }
+
+    /* Pass 1: identify string/char literal ranges. Pass 2: emit char-by-char,
+     * preserving literal interiors verbatim and collapsing/dropping whitespace
+     * outside literals per the locked design. */
+    static normalize(input) {
+      if (input == null) return '';
+      const s = String(input);
+      const n = s.length;
+      const literals = [];
+      let i = 0;
+      while (i < n) {
+        const c = s[i];
+        if (c === '"') {
+          let j = i + 1;
+          while (j < n && s[j] !== '"') {
+            if (s[j] === '\\' && j + 1 < n) j += 2;
+            else j += 1;
+          }
+          if (j < n) j += 1;
+          literals.push([i, j]);
+          i = j;
+          continue;
+        }
+        if (c === 'r' && i + 1 < n && s[i + 1] === '"') {
+          let j = i + 2;
+          while (j < n && s[j] !== '"') j += 1;
+          if (j < n) j += 1;
+          literals.push([i, j]);
+          i = j;
+          continue;
+        }
+        if (c === "'") {
+          // Char literal vs lifetime — disambiguate by lookahead.
+          if (i + 3 < n && s[i + 1] === '\\' && s[i + 3] === "'") {
+            literals.push([i, i + 4]);
+            i += 4;
+            continue;
+          }
+          if (i + 2 < n && s[i + 1] !== "'" && s[i + 1] !== '\\' && s[i + 2] === "'") {
+            literals.push([i, i + 3]);
+            i += 3;
+            continue;
+          }
+          // Lifetime — leave for pass 2 (apostrophe is part of identifier token).
+          i += 1;
+          continue;
+        }
+        i += 1;
+      }
+      const wordRe = /[A-Za-z0-9_']/;
+      const out = [];
+      let li = 0;
+      i = 0;
+      while (i < n) {
+        if (li < literals.length && i === literals[li][0]) {
+          out.push(s.slice(literals[li][0], literals[li][1]));
+          i = literals[li][1];
+          li += 1;
+          continue;
+        }
+        const c = s[i];
+        if (/\s/.test(c)) {
+          let j = i + 1;
+          while (j < n && /\s/.test(s[j])) j += 1;
+          const prev = out.length > 0 ? out[out.length - 1].slice(-1) : '';
+          const next = j < n ? s[j] : '';
+          if (wordRe.test(prev) && wordRe.test(next)) out.push(' ');
+          i = j;
+          continue;
+        }
+        out.push(c);
+        i += 1;
+      }
+      let result = out.join('');
+      result = result.replace(/,(\s*[\)\]\}])/g, '$1');
+      return result.trim();
+    }
+
+    /* Reverse map: alt-normalized → canonical-normalized. Sorted by alt
+     * length descending so longest matches are tried first per position. */
+    static _buildReverseAltMap(altsMap) {
+      const entries = [];
+      for (const canon in altsMap) {
+        if (!Object.prototype.hasOwnProperty.call(altsMap, canon)) continue;
+        const alts = altsMap[canon];
+        if (!Array.isArray(alts)) continue;
+        const canonNorm = RustEngine.normalize(canon);
+        for (const alt of alts) {
+          entries.push({ alt: RustEngine.normalize(alt), canon: canonNorm });
+        }
+      }
+      entries.sort((x, y) => y.alt.length - x.alt.length);
+      return entries;
+    }
+
+    /* Walk input emitting canonical text where alt-keys match with word
+     * boundaries. Single-pass: emitted canonical is not re-scanned. */
+    static _applyAlternatives(input, reverseMap) {
+      if (reverseMap.length === 0) return input;
+      const wordRe = /[A-Za-z0-9_']/;
+      const n = input.length;
+      const out = [];
+      let i = 0;
+      while (i < n) {
+        let matched = null;
+        for (let k = 0; k < reverseMap.length; k++) {
+          const e = reverseMap[k];
+          if (!e.alt) continue;
+          if (i + e.alt.length > n) continue;
+          if (input.slice(i, i + e.alt.length) !== e.alt) continue;
+          const prev = i > 0 ? input[i - 1] : '';
+          const next = i + e.alt.length < n ? input[i + e.alt.length] : '';
+          if (wordRe.test(e.alt[0]) && prev && wordRe.test(prev)) continue;
+          if (wordRe.test(e.alt[e.alt.length - 1]) && next && wordRe.test(next)) continue;
+          matched = e;
+          break;
+        }
+        if (matched) {
+          out.push(matched.canon);
+          i += matched.alt.length;
+        } else {
+          out.push(input[i]);
+          i += 1;
+        }
+      }
+      return out.join('');
+    }
+
+    /* Conditional-on-tag refined error messages for structure mismatches.
+     * Ordered by specificity; first match wins. */
+    static _grammarLite(userNorm, canonNorm, userRaw, assertion, tags) {
+      const has = (t) => tags.indexOf(t) !== -1;
+
+      if (has('mutability') && /\bmut\b/.test(canonNorm) && !/\bmut\b/.test(userNorm)) {
+        return 'binding needs `mut`';
+      }
+      if (canonNorm.endsWith(';') && !userNorm.endsWith(';')) {
+        return 'missing `;` at end of statement';
+      }
+      if ((has('borrowing') || has('closures') || has('iterators'))
+          && canonNorm.indexOf('|&') !== -1 && userNorm.indexOf('|&') === -1) {
+        return 'wrong borrow syntax — try `|&w|` or `*w`';
+      }
+      if (has('traits') && /\bimpl\b[^{]*\bfor\b/.test(canonNorm)
+          && /\bimpl\b/.test(userNorm) && !/\bimpl\b[^{]*\bfor\b/.test(userNorm)) {
+        return 'missing `for <Type>` in impl block';
+      }
+      const u = truncate(String(userRaw || ''), 80);
+      const e = truncate(String(assertion.structure || ''), 80);
+      return 'structure mismatch\n   your:     ' + u + '\n   expected: ' + e;
+    }
+  }
 
   class TerminalApp {
     constructor(term, state, py, sql, js, ui) {

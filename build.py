@@ -92,6 +92,26 @@ PLACEHOLDER = "{{CONTENT_BUNDLE_JSON}}"
 # Hard limit on code-block lines — soft-warned by --check.
 CODE_BLOCK_SOFT_LIMIT = 15
 
+# v4.0 Stage 2 — closed tag set for Rust questions. New tags require adding
+# here first; the lint below rejects any tag outside this set.
+RUST_QUESTION_TAGS = frozenset({
+    "mutability",     # let mut, &mut, mutable references
+    "borrowing",      # & references, borrow checker concepts
+    "lifetimes",      # 'a annotations, lifetime elision
+    "traits",         # trait definitions, impl blocks, trait bounds
+    "closures",       # |x| ... syntax, FnOnce/Fn/FnMut
+    "iterators",      # iter(), map, filter, collect chains
+    "error-handling", # Result, Option, ?, unwrap, panic
+    "generics",       # <T>, where clauses
+    "macros",         # println!, vec!, custom macro_rules!
+    "unsafe",         # unsafe blocks, raw pointers
+    "async",          # async fn, .await, futures (Master tier)
+})
+
+# Marker sentinels around the Stage 2 Rust questions block in the template.
+RUST_QS_BEGIN = "STAGE2_RUST_QUESTIONS_BEGIN"
+RUST_QS_END = "STAGE2_RUST_QUESTIONS_END"
+
 # --------------------------------------------------------------------------------------
 # Tag syntax (v3.10).
 #
@@ -689,6 +709,36 @@ def warn_deleted_globals_in_js_content(md_text: str, *, file_label: str,
                     )
 
 
+def warn_rust_question_tags(template_text: str, *, errors: list[str]) -> None:
+    """v4.0 Stage 2 — verify every tag on a Rust question is in the closed
+    RUST_QUESTION_TAGS set. The Rust questions live between STAGE2 sentinels
+    in src/index.template.html; absence of the block is not an error (Stage 2
+    may be reverted), but any tag outside the closed set is fatal.
+
+    Tags appear as JSON arrays of double-quoted strings: `"tags":["mutability"]`.
+    We scan inside the marked block and extract every quoted string from every
+    "tags":[...] occurrence.
+    """
+    s = template_text.find(RUST_QS_BEGIN)
+    e = template_text.find(RUST_QS_END, s + len(RUST_QS_BEGIN) if s >= 0 else 0)
+    if s < 0 or e < 0:
+        return  # Block not present — Stage 2 not landed; no Rust questions to check.
+    block = template_text[s:e]
+    # Find every `"tags":[ ... ]` array body. Tag values are simple identifiers
+    # (no nested brackets), so `[^\]]*` is safe inside the array.
+    for m in re.finditer(r'"tags"\s*:\s*\[([^\]]*)\]', block):
+        body = m.group(1)
+        for tag_m in re.finditer(r'"([^"]+)"', body):
+            tag = tag_m.group(1)
+            if tag not in RUST_QUESTION_TAGS:
+                line_num = (template_text.count("\n", 0, s + m.start()) + 1)
+                errors.append(
+                    f"src/index.template.html:{line_num}: unknown Rust question tag "
+                    f"'{tag}'. Closed set: {', '.join(sorted(RUST_QUESTION_TAGS))}. "
+                    f"Add to RUST_QUESTION_TAGS in build.py first if introducing a new tag."
+                )
+
+
 def build_track_bundle(track: str, content_dir: Path, *, valid_qids: set[str],
                        errors: list[str]) -> dict:
     """Build the {cheatsheet, tiers, examples} dict for one track."""
@@ -948,6 +998,7 @@ def build(repo_root: Path, *, check_only: bool) -> int:
               file=sys.stderr)
 
     errors: list[str] = []
+    warn_rust_question_tags(template_text, errors=errors)
     bundle = {
         track: build_track_bundle(
             track, content_dir, valid_qids=valid_qids, errors=errors,
