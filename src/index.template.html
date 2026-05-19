@@ -1967,6 +1967,127 @@
               { "input":"values: Vec<i32> = vec![1, 2, 3];",         "expect_msg":"missing `let`" },
               { "input":"let values: Vec<i32> = vec![1, 2, 3]",      "expect_msg":"missing `;`" }
             ]
+          } },
+        { "id":"rs_intro_06",
+          "prompt":"Bind a variable named shop_name of type &str to the string \"Terminal Auto\".",
+          "hint":"Rust has two string types: `&str` (a borrowed string slice — what literals are) and `String` (owned, growable). For literals, `&str` is the cheap choice.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","shop_name","&str","=","\"Terminal Auto\""],
+            "forbidden":[],
+            "structure":"let shop_name: &str = \"Terminal Auto\";",
+            "alternatives":{}
+          },
+          "tags":[],
+          "qa":{
+            "accept":[
+              "let shop_name: &str = \"Terminal Auto\";",
+              "let shop_name:&str=\"Terminal Auto\";",
+              "let shop_name : &str = \"Terminal Auto\" ;"
+            ],
+            "reject":[
+              { "input":"let shop_name: String = \"Terminal Auto\";", "expect_msg":"missing `&str`" },
+              { "input":"let shop_name = \"Terminal Auto\";",         "expect_msg":"missing `&str`" },
+              { "input":"let shop_name: &str = \"Terminal Auto\"",    "expect_msg":"missing `;`" }
+            ]
+          } },
+        { "id":"rs_intro_07",
+          "prompt":"Write an if/else statement: when cost > 1000, call println!(\"High\"); otherwise call println!(\"Low\"). The variable cost is already bound.",
+          "hint":"Rust's `if` condition does NOT take parentheses around the expression. Braces around each branch ARE required, even for a single line.",
+          "assertion":{
+            "type":"pattern",
+            "required":["if","cost",">","1000","println!","\"High\"","else","\"Low\""],
+            "forbidden":[],
+            "structure":"if cost > 1000 { println!(\"High\"); } else { println!(\"Low\"); }",
+            "alternatives":{}
+          },
+          "tags":[],
+          "qa":{
+            "accept":[
+              "if cost > 1000 { println!(\"High\"); } else { println!(\"Low\"); }",
+              "if cost>1000{println!(\"High\");}else{println!(\"Low\");}",
+              "if cost > 1000 {\n    println!(\"High\");\n} else {\n    println!(\"Low\");\n}"
+            ],
+            "reject":[
+              { "input":"if cost > 1000 { println!(\"High\"); }",                                 "expect_msg":"missing `else`" },
+              { "input":"if (cost > 1000) { println!(\"High\"); } else { println!(\"Low\"); }",   "expect_msg":"structure mismatch" },
+              { "input":"if cost > 1000 { println!(\"Low\"); } else { println!(\"High\"); }",     "expect_msg":"structure mismatch" }
+            ]
+          } },
+        { "id":"rs_intro_08",
+          "prompt":"Define a function named double that takes an i32 parameter x and returns x * 2 (also i32).",
+          "hint":"Rust functions: `fn name(param: type) -> return_type { body }`. The final expression of a body is the return value — no `return` keyword needed.",
+          "assertion":{
+            "type":"pattern",
+            "required":["fn","double","x: i32","->","i32","* 2"],
+            "forbidden":[],
+            "structure":"fn double(x: i32) -> i32 { x * 2 }",
+            "alternatives":{
+              "x * 2":["return x * 2;"]
+            }
+          },
+          "tags":[],
+          "qa":{
+            "accept":[
+              "fn double(x: i32) -> i32 { x * 2 }",
+              "fn double(x:i32)->i32{x*2}",
+              "fn double(x: i32) -> i32 { return x * 2; }",
+              "fn  double ( x: i32 )  ->  i32  {  x * 2  }"
+            ],
+            "reject":[
+              { "input":"fn double(x: i32) { x * 2 }",         "expect_msg":"missing `->`" },
+              { "input":"double(x: i32) -> i32 { x * 2 }",     "expect_msg":"missing `fn`" },
+              { "input":"fn double(x) -> i32 { x * 2 }",       "expect_msg":"missing `x: i32`" }
+            ]
+          } },
+        { "id":"rs_intro_09",
+          "prompt":"Match the variable n (an i32) and bind the result to label: \"one\" when n is 1, \"two\" when n is 2, \"many\" otherwise.",
+          "hint":"`match` is an expression — it produces a value, so you can `let label = match n { ... };`. The wildcard arm `_ => ...` covers everything else and is required for exhaustiveness.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","label","match","n","1 =>","\"one\"","2 =>","\"two\"","_ =>","\"many\""],
+            "forbidden":[],
+            "structure":"let label = match n { 1 => \"one\", 2 => \"two\", _ => \"many\" };",
+            "alternatives":{}
+          },
+          "tags":[],
+          "qa":{
+            "accept":[
+              "let label = match n { 1 => \"one\", 2 => \"two\", _ => \"many\" };",
+              "let label=match n{1=>\"one\",2=>\"two\",_=>\"many\"};",
+              "let label = match n {\n    1 => \"one\",\n    2 => \"two\",\n    _ => \"many\",\n};"
+            ],
+            "reject":[
+              { "input":"let label = match n { 1 => \"one\", 2 => \"two\" };",                "expect_msg":"missing `_ =>`" },
+              { "input":"match n { 1 => \"one\", 2 => \"two\", _ => \"many\" };",             "expect_msg":"missing `let`" },
+              { "input":"let label = match n { 1 => \"one\", 2 => \"two\", _ => \"many\" }",  "expect_msg":"missing `;`" }
+            ]
+          } },
+        { "id":"rs_intro_10",
+          "prompt":"Bind a 2-tuple named position to (3, 5).",
+          "hint":"A tuple groups two values of any types into one binding. In Amateur tier you'll see tuple patterns in `match` arms like `(a, b) => a + b`.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","position","=","(3, 5)"],
+            "forbidden":[],
+            "structure":"let position = (3, 5);",
+            "alternatives":{
+              "position":["position: (i32, i32)"]
+            }
+          },
+          "tags":[],
+          "qa":{
+            "accept":[
+              "let position = (3, 5);",
+              "let position=(3,5);",
+              "let position: (i32, i32) = (3, 5);",
+              "let position = (3, 5,);"
+            ],
+            "reject":[
+              { "input":"let position = [3, 5];",  "expect_msg":"missing `(3, 5)`" },
+              { "input":"position = (3, 5);",      "expect_msg":"missing `let`" },
+              { "input":"let position = (3, 5)",   "expect_msg":"missing `;`" }
+            ]
           } }
       ],
       amateur: [],
