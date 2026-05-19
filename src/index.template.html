@@ -2090,7 +2090,256 @@
             ]
           } }
       ],
-      amateur: [],
+      amateur: [
+        { "id":"rs_ama_01",
+          "prompt":"Create an empty mutable Vec<i32> named scores using Vec::new(), then push 5 onto it.",
+          "hint":"`Vec::new()` makes an empty vector. The binding needs `mut` to push to it later. The type annotation `Vec<i32>` is required here because an empty `Vec::new()` gives the compiler no element to infer from.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","scores","Vec<i32>","Vec::new()",".push(5)"],
+            "forbidden":[],
+            "structure":"let mut scores: Vec<i32> = Vec::new(); scores.push(5);",
+            "alternatives":{}
+          },
+          "tags":["mutability"],
+          "qa":{
+            "accept":[
+              "let mut scores: Vec<i32> = Vec::new(); scores.push(5);",
+              "let mut scores: Vec<i32> = Vec::new();\nscores.push(5);",
+              "let mut scores:Vec<i32>=Vec::new();scores.push(5);"
+            ],
+            "reject":[
+              { "input":"let scores: Vec<i32> = Vec::new(); scores.push(5);",  "expect_msg":"binding needs `mut`" },
+              { "input":"let mut scores: Vec<i32> = Vec::new();",              "expect_msg":"missing `.push(5)`" },
+              { "input":"let mut scores: Vec<i32>; scores.push(5);",           "expect_msg":"missing `Vec::new()`" }
+            ]
+          } },
+        { "id":"rs_ama_02",
+          "prompt":"Create an owned String named greeting from the literal \"Hello\".",
+          "hint":"An owned `String` is heap-allocated and growable, distinct from `&str` (a borrowed string slice). Convert with `String::from(\"...\")`, `.to_string()`, or `.to_owned()` — all three are accepted.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","greeting","String","\"Hello\""],
+            "forbidden":[],
+            "structure":"let greeting: String = String::from(\"Hello\");",
+            "alternatives":{
+              "String::from(\"Hello\")":["\"Hello\".to_string()","\"Hello\".to_owned()"]
+            }
+          },
+          "tags":[],
+          "qa":{
+            "accept":[
+              "let greeting: String = String::from(\"Hello\");",
+              "let greeting: String = \"Hello\".to_string();",
+              "let greeting: String = \"Hello\".to_owned();",
+              "let greeting:String=String::from(\"Hello\");"
+            ],
+            "reject":[
+              { "input":"let greeting: &str = \"Hello\";",                  "expect_msg":"missing `String`" },
+              { "input":"let greeting = String::from(\"Hello\");",          "expect_msg":"structure mismatch" },
+              { "input":"let greeting: String = String::from(\"Hello\")",   "expect_msg":"missing `;`" }
+            ]
+          } },
+        { "id":"rs_ama_03",
+          "prompt":"Given a Vec<i32> named items, bind a variable count to its length.",
+          "hint":"`Vec::len()` returns the number of elements as `usize`. Call it as a method: `items.len()`.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","count","items.len()"],
+            "forbidden":[],
+            "structure":"let count = items.len();",
+            "alternatives":{
+              "count":["count: usize"]
+            }
+          },
+          "tags":[],
+          "qa":{
+            "accept":[
+              "let count = items.len();",
+              "let count=items.len();",
+              "let count: usize = items.len();"
+            ],
+            "reject":[
+              { "input":"let count = items.length();",  "expect_msg":"missing `items.len()`" },
+              { "input":"let count = len(items);",      "expect_msg":"missing `items.len()`" },
+              { "input":"let count = items.len()",      "expect_msg":"missing `;`" }
+            ]
+          } },
+        { "id":"rs_ama_04",
+          "prompt":"Bind a variable named maybe_first to the Option value Some(42).",
+          "hint":"`Option<T>` represents a value that might be missing. `Some(x)` wraps a present value; `None` represents absence. Both are constructors of the `Option` enum.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","maybe_first","=","Some(42)"],
+            "forbidden":[],
+            "structure":"let maybe_first = Some(42);",
+            "alternatives":{
+              "maybe_first":["maybe_first: Option<i32>"]
+            }
+          },
+          "tags":["error-handling"],
+          "qa":{
+            "accept":[
+              "let maybe_first = Some(42);",
+              "let maybe_first=Some(42);",
+              "let maybe_first: Option<i32> = Some(42);"
+            ],
+            "reject":[
+              { "input":"let maybe_first = 42;",      "expect_msg":"missing `Some(42)`" },
+              { "input":"let maybe_first = None;",    "expect_msg":"missing `Some(42)`" },
+              { "input":"let maybe_first = Some(42)", "expect_msg":"missing `;`" }
+            ]
+          } },
+        { "id":"rs_ama_05",
+          "prompt":"Given a binding `confidence: Option<f64>` (a model's prediction confidence — it may be missing), use `if let` to print the value when present with `println!(\"conf: {}\", c)`. Bind the inner value to `c`.",
+          "hint":"`if let Some(name) = expr { body }` runs the body only when `expr` matches `Some(...)`, binding the inner value to `name`. It's the lightweight alternative to `match` when you only care about one arm.",
+          "assertion":{
+            "type":"pattern",
+            "required":["if let","Some(c)","=","confidence","println!","\"conf: {}\""],
+            "forbidden":[],
+            "structure":"if let Some(c) = confidence { println!(\"conf: {}\", c); }",
+            "alternatives":{}
+          },
+          "tags":["error-handling"],
+          "qa":{
+            "accept":[
+              "if let Some(c) = confidence { println!(\"conf: {}\", c); }",
+              "if let Some(c)=confidence{println!(\"conf: {}\",c);}",
+              "if let Some(c) = confidence {\n    println!(\"conf: {}\", c);\n}"
+            ],
+            "reject":[
+              { "input":"if confidence { println!(\"conf: {}\", confidence); }",      "expect_msg":"missing `if let`" },
+              { "input":"if let c = confidence { println!(\"conf: {}\", c); }",        "expect_msg":"missing `Some(c)`" },
+              { "input":"if let Some(c) = confidence { println!(\"value: {}\", c); }", "expect_msg":"missing `\"conf: {}\"`" }
+            ]
+          } },
+        { "id":"rs_ama_06",
+          "prompt":"Match on the variable kind (an Option<i32>) and bind the result to label (a &str): \"some\" when present, \"none\" otherwise.",
+          "hint":"A `match` on `Option<T>` has two arms: `Some(_) => ...` for the present case and `None => ...` for the absent case. Use the wildcard `_` when you don't need the inner value.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","label","match","kind","Some","\"some\"","None","\"none\""],
+            "forbidden":[],
+            "structure":"let label = match kind { Some(_) => \"some\", None => \"none\" };",
+            "alternatives":{
+              "Some(_)":["Some(x)","Some(value)","Some(_v)"]
+            }
+          },
+          "tags":["error-handling"],
+          "qa":{
+            "accept":[
+              "let label = match kind { Some(_) => \"some\", None => \"none\" };",
+              "let label=match kind{Some(_)=>\"some\",None=>\"none\"};",
+              "let label = match kind { Some(x) => \"some\", None => \"none\" };",
+              "let label = match kind {\n    Some(_) => \"some\",\n    None => \"none\",\n};"
+            ],
+            "reject":[
+              { "input":"let label = match kind { Some(_) => \"some\" };",                   "expect_msg":"missing `None`" },
+              { "input":"let label = match kind { _ => \"some\" };",                         "expect_msg":"missing `Some`" },
+              { "input":"let label = match kind { Some(_) => \"some\", None => \"none\" }",  "expect_msg":"missing `;`" }
+            ]
+          } },
+        { "id":"rs_ama_07",
+          "prompt":"Define a function named load that takes no arguments and returns Result<i32, String>. The body should return Ok(42).",
+          "hint":"`Result<T, E>` is Rust's error type — `Ok(value)` for success, `Err(error)` for failure. `Ok` and `Err` are in the prelude so you don't need to qualify them.",
+          "assertion":{
+            "type":"pattern",
+            "required":["fn","load","()","->","Result<i32, String>","Ok(42)"],
+            "forbidden":[],
+            "structure":"fn load() -> Result<i32, String> { Ok(42) }",
+            "alternatives":{
+              "Ok(42)":["return Ok(42);"]
+            }
+          },
+          "tags":["error-handling"],
+          "qa":{
+            "accept":[
+              "fn load() -> Result<i32, String> { Ok(42) }",
+              "fn load()->Result<i32,String>{Ok(42)}",
+              "fn load() -> Result<i32, String> { return Ok(42); }"
+            ],
+            "reject":[
+              { "input":"fn load() Result<i32, String> { Ok(42) }", "expect_msg":"missing `->`" },
+              { "input":"fn load() -> Result<i32, String> { 42 }",  "expect_msg":"missing `Ok(42)`" },
+              { "input":"fn load() -> Result<i32, ()> { Ok(42) }",  "expect_msg":"missing `Result<i32, String>`" }
+            ]
+          } },
+        { "id":"rs_ama_08",
+          "prompt":"Given a binding `prediction: Option<f64>` (a model's possibly-missing output), bind a variable score to the inner value, defaulting to 0.0 when None.",
+          "hint":"`Option::unwrap_or(default)` returns the inner value if `Some(...)`, otherwise returns `default`. It's the safest way to extract from an `Option` when you have a sensible fallback.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","score","prediction.unwrap_or"],
+            "forbidden":[],
+            "structure":"let score = prediction.unwrap_or(0.0);",
+            "alternatives":RUST_ALTERNATIVES_LIBRARY.NUMERIC_LITERAL_SUFFIXES
+          },
+          "tags":["error-handling"],
+          "qa":{
+            "accept":[
+              "let score = prediction.unwrap_or(0.0);",
+              "let score=prediction.unwrap_or(0.0);",
+              "let score = prediction.unwrap_or(0.0f64);",
+              "let score = prediction.unwrap_or(0.0_f64);"
+            ],
+            "reject":[
+              { "input":"let score = prediction.unwrap();",      "expect_msg":"missing `prediction.unwrap_or`" },
+              { "input":"let score = prediction.unwrap_or(0);",  "expect_msg":"structure mismatch" },
+              { "input":"let score = prediction.unwrap_or(0.0)", "expect_msg":"missing `;`" }
+            ]
+          } },
+        { "id":"rs_ama_09",
+          "prompt":"Given `logits: &Vec<f64>` (a model's output logits), bind a variable first_logit to the result of logits.first().",
+          "hint":"`.first()` on a slice/Vec returns `Option<&T>` — an Option wrapping a borrowed reference, not the value itself. Empty vector → `None`; non-empty → `Some(&first_value)`. This is the first place you'll see `Option` carrying a reference.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","first_logit","logits.first()"],
+            "forbidden":[],
+            "structure":"let first_logit = logits.first();",
+            "alternatives":{
+              "first_logit":["first_logit: Option<&f64>"]
+            }
+          },
+          "tags":["error-handling"],
+          "qa":{
+            "accept":[
+              "let first_logit = logits.first();",
+              "let first_logit=logits.first();",
+              "let first_logit: Option<&f64> = logits.first();"
+            ],
+            "reject":[
+              { "input":"let first_logit = logits[0];",     "expect_msg":"missing `logits.first()`" },
+              { "input":"let first_logit = logits.get(0);", "expect_msg":"missing `logits.first()`" },
+              { "input":"let first_logit = logits.first()", "expect_msg":"missing `;`" }
+            ]
+          } },
+        { "id":"rs_ama_10",
+          "prompt":"Given `prediction: Option<f64>` (a model's possibly-missing output), match on it and bind status to a &str: \"predicted\" when Some, \"unknown\" when None.",
+          "hint":"Same `match` shape as rs_ama_06, applied here to a model output. In Intermediate tier you'll see closures like `|x| x * 2` and iterator chains like `vec.iter().filter(...)` — both are the building blocks for processing collections of these predictions.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","status","match","prediction","Some","\"predicted\"","None","\"unknown\""],
+            "forbidden":[],
+            "structure":"let status = match prediction { Some(_) => \"predicted\", None => \"unknown\" };",
+            "alternatives":{
+              "Some(_)":["Some(x)","Some(value)","Some(_v)"]
+            }
+          },
+          "tags":["error-handling"],
+          "qa":{
+            "accept":[
+              "let status = match prediction { Some(_) => \"predicted\", None => \"unknown\" };",
+              "let status=match prediction{Some(_)=>\"predicted\",None=>\"unknown\"};",
+              "let status = match prediction { Some(x) => \"predicted\", None => \"unknown\" };",
+              "let status = match prediction {\n    Some(_) => \"predicted\",\n    None => \"unknown\",\n};"
+            ],
+            "reject":[
+              { "input":"let status = match prediction { Some(_) => \"predicted\" };",                          "expect_msg":"missing `None`" },
+              { "input":"let status = match prediction { _ => \"predicted\" };",                                "expect_msg":"missing `Some`" },
+              { "input":"let status = match prediction { Some(_) => \"predicted\", None => \"unknown\" }",      "expect_msg":"missing `;`" }
+            ]
+          } }
+      ],
       intermediate: [],
       experienced: [
         { "id":"rs_exp_01",
