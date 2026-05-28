@@ -2340,7 +2340,258 @@
             ]
           } }
       ],
-      intermediate: [],
+      intermediate: [
+        { "id":"rs_int_01",
+          "prompt":"Define a function named count that takes a borrowed reference to a Vec<i32> named items and returns its length as usize.",
+          "hint":"`&T` is a shared (immutable) borrow. Passing `&Vec<i32>` lets the function read the vector without taking ownership — the caller keeps it.",
+          "assertion":{
+            "type":"pattern",
+            "required":["fn","count","items: &Vec<i32>","->","usize","items.len()"],
+            "forbidden":[],
+            "structure":"fn count(items: &Vec<i32>) -> usize { items.len() }",
+            "alternatives":{}
+          },
+          "tags":["borrowing"],
+          "qa":{
+            "accept":[
+              "fn count(items: &Vec<i32>) -> usize { items.len() }",
+              "fn count(items:&Vec<i32>)->usize{items.len()}",
+              "fn count(items: &Vec<i32>) -> usize {\n    items.len()\n}"
+            ],
+            "reject":[
+              { "input":"fn count(items: Vec<i32>) -> usize { items.len() }",     "expect_msg":"missing `items: &Vec<i32>`" },
+              { "input":"fn count(items: &Vec<i32>) -> i32 { items.len() }",      "expect_msg":"missing `usize`" },
+              { "input":"fn count(items: &Vec<i32>) -> usize { items.length() }", "expect_msg":"missing `items.len()`" }
+            ]
+          } },
+        { "id":"rs_int_02",
+          "prompt":"Define a function named add_five that takes a mutable borrowed reference to a Vec<i32> named items, pushes 5 onto it, and returns nothing.",
+          "hint":"`&mut T` is an exclusive (mutable) borrow — only one can exist at a time, and no shared `&T` borrows can coexist with it. That's the borrow checker's core invariant.",
+          "assertion":{
+            "type":"pattern",
+            "required":["fn","add_five","items: &mut Vec<i32>","items.push(5)"],
+            "forbidden":[],
+            "structure":"fn add_five(items: &mut Vec<i32>) { items.push(5); }",
+            "alternatives":{}
+          },
+          "tags":["borrowing","mutability"],
+          "qa":{
+            "accept":[
+              "fn add_five(items: &mut Vec<i32>) { items.push(5); }",
+              "fn add_five(items:&mut Vec<i32>){items.push(5);}",
+              "fn add_five(items: &mut Vec<i32>) {\n    items.push(5);\n}"
+            ],
+            "reject":[
+              { "input":"fn add_five(items: &Vec<i32>) { items.push(5); }",   "expect_msg":"missing `items: &mut Vec<i32>`" },
+              { "input":"fn add_five(items: &mut Vec<i32>) { items.push(); }","expect_msg":"missing `items.push(5)`" },
+              { "input":"fn add_five(items: Vec<i32>) { items.push(5); }",    "expect_msg":"missing `items: &mut Vec<i32>`" }
+            ]
+          } },
+        { "id":"rs_int_03",
+          "prompt":"Bind a variable total of type i32 to the sum of all elements in xs (a Vec<i32>) using .iter() and .sum().",
+          "hint":"`.iter()` produces an iterator over `&i32` references. `.sum()` consumes the iterator and returns the total. The explicit type annotation `: i32` tells `.sum()` what type to produce — without it, the compiler can't infer.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","total","i32","xs.iter()",".sum"],
+            "forbidden":[],
+            "structure":"let total: i32 = xs.iter().sum();",
+            "alternatives":{
+              ".sum()":[".sum::<i32>()"]
+            }
+          },
+          "tags":["iterators"],
+          "qa":{
+            "accept":[
+              "let total: i32 = xs.iter().sum();",
+              "let total:i32=xs.iter().sum();",
+              "let total: i32 = xs.iter().sum::<i32>();"
+            ],
+            "reject":[
+              { "input":"let total: i32 = xs.iter().product();", "expect_msg":"missing `.sum`" },
+              { "input":"let total: i32 = xs.sum();",            "expect_msg":"missing `xs.iter()`" },
+              { "input":"let total = xs.iter().sum();",          "expect_msg":"missing `i32`" }
+            ]
+          } },
+        { "id":"rs_int_04",
+          "prompt":"Given xs: &Vec<i32>, bind a variable doubled to a new Vec<i32> where each element is xs's element doubled. Use .iter(), .map(|x| ...), and .collect().",
+          "hint":"`.iter().map(...)` builds a new iterator that yields transformed values lazily. `.collect()` consumes the iterator into a destination collection — the binding's type annotation tells it which.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","doubled","Vec<i32>","xs.iter()",".map","* 2",".collect"],
+            "forbidden":[],
+            "structure":"let doubled: Vec<i32> = xs.iter().map(|x| x * 2).collect();",
+            "alternatives":{
+              "|x| x * 2":["|&x| x * 2","|x| *x * 2"]
+            }
+          },
+          "tags":["closures","iterators"],
+          "qa":{
+            "accept":[
+              "let doubled: Vec<i32> = xs.iter().map(|x| x * 2).collect();",
+              "let doubled:Vec<i32>=xs.iter().map(|x|x*2).collect();",
+              "let doubled: Vec<i32> = xs.iter().map(|&x| x * 2).collect();",
+              "let doubled: Vec<i32> = xs.iter().map(|x| *x * 2).collect();"
+            ],
+            "reject":[
+              { "input":"let doubled: Vec<i32> = xs.iter().map(|x| x + 2).collect();", "expect_msg":"missing `* 2`" },
+              { "input":"let doubled: Vec<i32> = xs.iter().map(|n| n * 2).collect();", "expect_msg":"structure mismatch" },
+              { "input":"let doubled: Vec<i32> = xs.map(|x| x * 2).collect();",        "expect_msg":"missing `xs.iter()`" }
+            ]
+          } },
+        { "id":"rs_int_05",
+          "prompt":"Given weights: &Vec<f64> (a model's weight vector), bind a variable positive to the count of weights greater than 0.0. Use .iter(), .filter() with a closure, and .count().",
+          "hint":"`.iter()` yields `&f64` references. In the filter closure, either pattern-deconstruct via `|&w|` (so `w` is f64) or accept the reference and dereference manually with `|w| *w` — both are accepted.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","positive","weights.iter()",".filter","> 0.0",".count()"],
+            "forbidden":[],
+            "structure":"let positive = weights.iter().filter(|&w| w > 0.0).count();",
+            "alternatives":RUST_ALTERNATIVES_LIBRARY.CLOSURE_DEREF_VARIANTS
+          },
+          "tags":["closures","iterators"],
+          "qa":{
+            "accept":[
+              "let positive = weights.iter().filter(|&w| w > 0.0).count();",
+              "let positive=weights.iter().filter(|&w|w>0.0).count();",
+              "let positive = weights.iter().filter(|w| *w > 0.0).count();",
+              "let positive = weights.iter().filter(|&&w| w > 0.0).count();"
+            ],
+            "reject":[
+              { "input":"let positive = weights.iter().filter(|w| w > 0.0).count();", "expect_msg":"wrong borrow syntax" },
+              { "input":"let positive = weights.iter().filter(|&w| w > 0).count();",  "expect_msg":"missing `> 0.0`" },
+              { "input":"let positive = weights.iter().filter(|&w| w > 0.0)",         "expect_msg":"missing `.count()`" }
+            ]
+          } },
+        { "id":"rs_int_06",
+          "prompt":"Given xs: &Vec<f64>, bind a variable ss of type f64 to the sum of squares of xs: each element multiplied by itself, all summed. Use .iter(), .map(), and .sum().",
+          "hint":"Map each element to its square via a closure (`|&x| x * x` pattern-deconstructs the `&f64` and squares the value), then sum the resulting iterator. The annotation `: f64` is required so `.sum()` knows what type to produce.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","ss: f64","xs.iter()",".map",".sum"],
+            "forbidden":[],
+            "structure":"let ss: f64 = xs.iter().map(|&x| x * x).sum();",
+            "alternatives":{
+              "|&x| x * x":["|x| *x * *x","|&&x| x * x"],
+              ".sum()":[".sum::<f64>()"]
+            }
+          },
+          "tags":["closures","iterators"],
+          "qa":{
+            "accept":[
+              "let ss: f64 = xs.iter().map(|&x| x * x).sum();",
+              "let ss:f64=xs.iter().map(|&x|x*x).sum();",
+              "let ss: f64 = xs.iter().map(|x| *x * *x).sum();",
+              "let ss: f64 = xs.iter().map(|&&x| x * x).sum();",
+              "let ss: f64 = xs.iter().map(|&x| x * x).sum::<f64>();"
+            ],
+            "reject":[
+              { "input":"let ss: f64 = xs.iter().map(|&x| x + x).sum();",   "expect_msg":"structure mismatch" },
+              { "input":"let ss = xs.iter().map(|&x| x * x).sum::<f64>();", "expect_msg":"missing `ss: f64`" },
+              { "input":"let ss: f64 = xs.iter().sum();",                   "expect_msg":"missing `.map`" }
+            ]
+          } },
+        { "id":"rs_int_07",
+          "prompt":"Given xs: &Vec<f64>, bind a variable total of type f64 to the sum of xs using .iter() and .fold() with an initial accumulator of 0.0.",
+          "hint":"`.fold(init, |acc, &x| ...)` threads an accumulator through the iterator: each step receives the running `acc` and the next element. With `&x` in the closure, the iterator's `&f64` reference is pattern-deconstructed so `x` is a plain `f64`.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","total: f64","xs.iter()",".fold(0.0","acc +"],
+            "forbidden":[],
+            "structure":"let total: f64 = xs.iter().fold(0.0, |acc, &x| acc + x);",
+            "alternatives":{
+              "|acc, &x| acc + x":["|acc, x| acc + *x","|acc, &&x| acc + x"]
+            }
+          },
+          "tags":["closures","iterators"],
+          "qa":{
+            "accept":[
+              "let total: f64 = xs.iter().fold(0.0, |acc, &x| acc + x);",
+              "let total:f64=xs.iter().fold(0.0,|acc,&x|acc+x);",
+              "let total: f64 = xs.iter().fold(0.0, |acc, x| acc + *x);",
+              "let total: f64 = xs.iter().fold(0.0, |acc, &&x| acc + x);"
+            ],
+            "reject":[
+              { "input":"let total: f64 = xs.iter().fold(1.0, |acc, &x| acc + x);", "expect_msg":"missing `.fold(0.0`" },
+              { "input":"let total: f64 = xs.iter().fold(0.0, |acc, &x| acc * x);", "expect_msg":"missing `acc +`" },
+              { "input":"let total = xs.iter().fold(0.0, |acc, &x| acc + x);",      "expect_msg":"missing `total: f64`" }
+            ]
+          } },
+        { "id":"rs_int_08",
+          "prompt":"Bind weights to a Vec<f64> containing 0.1, 0.2, 0.3. Then bind print_weights to a `move` closure that prints weights with the {:?} debug format. Then call the closure with print_weights().",
+          "hint":"Without `move`, a closure *borrows* its captures and is bound by their lifetimes. With `move`, the closure *owns* its captures and can outlive the surrounding scope. For non-Copy types like `Vec<T>` and `String` the distinction is real; for Copy types like `f64` or `i32`, `move` makes no observable difference.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let weights","vec![0.1, 0.2, 0.3]","let print_weights","move ||","println!","\"{:?}\"","weights","print_weights()"],
+            "forbidden":[],
+            "structure":"let weights = vec![0.1, 0.2, 0.3]; let print_weights = move || println!(\"{:?}\", weights); print_weights();",
+            "alternatives":{}
+          },
+          "tags":["closures"],
+          "qa":{
+            "accept":[
+              "let weights = vec![0.1, 0.2, 0.3]; let print_weights = move || println!(\"{:?}\", weights); print_weights();",
+              "let weights=vec![0.1,0.2,0.3];let print_weights=move||println!(\"{:?}\",weights);print_weights();",
+              "let weights = vec![0.1, 0.2, 0.3];\nlet print_weights = move || println!(\"{:?}\", weights);\nprint_weights();"
+            ],
+            "reject":[
+              { "input":"let weights = vec![0.1, 0.2, 0.3]; let print_weights = || println!(\"{:?}\", weights); print_weights();",   "expect_msg":"missing `move ||`" },
+              { "input":"let weights = vec![0.1, 0.2, 0.3]; let print_weights = move || println!(\"{}\", weights); print_weights();","expect_msg":"missing `\"{:?}\"`" },
+              { "input":"let weights = vec![0.1, 0.2, 0.3]; let print_weights = move || println!(\"{:?}\", weights);",               "expect_msg":"missing `print_weights()`" }
+            ]
+          } },
+        { "id":"rs_int_09",
+          "prompt":"Given scores: &Vec<f64>, bind a variable high to the count of scores greater than 0.5. Use .iter(), .filter() with a closure, and .count().",
+          "hint":"Same shape as rs_int_05's closure-deref filter, applied to scores instead of weights. The deref variants `|s| *s` and `|&&s| s` are equally accepted; the canonical form `|&s| s` pattern-deconstructs the `&f64` reference into a plain `f64`.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","high","scores.iter()",".filter","> 0.5",".count()"],
+            "forbidden":[],
+            "structure":"let high = scores.iter().filter(|&s| s > 0.5).count();",
+            "alternatives":{
+              "|&s| s > 0.5":["|s| *s > 0.5","|&&s| s > 0.5"]
+            }
+          },
+          "tags":["closures","iterators"],
+          "qa":{
+            "accept":[
+              "let high = scores.iter().filter(|&s| s > 0.5).count();",
+              "let high=scores.iter().filter(|&s|s>0.5).count();",
+              "let high = scores.iter().filter(|s| *s > 0.5).count();",
+              "let high = scores.iter().filter(|&&s| s > 0.5).count();"
+            ],
+            "reject":[
+              { "input":"let high = scores.iter().filter(|&s| s > 0.6).count();", "expect_msg":"missing `> 0.5`" },
+              { "input":"let high = scores.iter().filter(|&s| s < 0.5).count();", "expect_msg":"missing `> 0.5`" },
+              { "input":"let high = scores.iter().count();",                       "expect_msg":"missing `.filter`" }
+            ]
+          } },
+        { "id":"rs_int_10",
+          "prompt":"Given logits: &Vec<f64> and scale: f64 (a scaling factor in the enclosing scope), bind a variable scaled to a new Vec<f64> where each element is the corresponding logit multiplied by scale. Use .iter(), .map() with a closure that uses scale, and .collect().",
+          "hint":"The closure captures `scale` from the enclosing scope automatically — a regular borrow capture works here because `scale` outlives the closure and `f64` is Copy anyway, so `move` is unnecessary. In Experienced tier you'll see how to write a generic version of this scaling that works for any numeric type via trait bounds like `<T: Mul<Output = T>>`.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","scaled: Vec<f64>","logits.iter()",".map","* scale",".collect"],
+            "forbidden":[],
+            "structure":"let scaled: Vec<f64> = logits.iter().map(|&x| x * scale).collect();",
+            "alternatives":{
+              "|&x| x * scale":["|x| *x * scale","|&&x| x * scale"]
+            }
+          },
+          "tags":["closures","iterators"],
+          "qa":{
+            "accept":[
+              "let scaled: Vec<f64> = logits.iter().map(|&x| x * scale).collect();",
+              "let scaled:Vec<f64>=logits.iter().map(|&x|x*scale).collect();",
+              "let scaled: Vec<f64> = logits.iter().map(|x| *x * scale).collect();",
+              "let scaled: Vec<f64> = logits.iter().map(|&&x| x * scale).collect();"
+            ],
+            "reject":[
+              { "input":"let scaled: Vec<f64> = logits.iter().map(|&x| x * 2.0).collect();", "expect_msg":"missing `* scale`" },
+              { "input":"let scaled: Vec<f64> = logits.iter().map(|&x| x / scale).collect();","expect_msg":"missing `* scale`" },
+              { "input":"let scaled: Vec<f64> = logits.iter().map(|&x| x * scale);",         "expect_msg":"missing `.collect`" }
+            ]
+          } }
+      ],
       experienced: [
         { "id":"rs_exp_01",
           "prompt":"Define a trait named Greeter with a method greet that takes &self and returns String.",
