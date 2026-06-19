@@ -2834,7 +2834,248 @@
             ]
           } }
       ],
-      master: [],
+      master: [
+        { "id":"rs_mas_01",
+          "prompt":"Define an async function named load_checkpoint that takes no arguments and returns Vec<f64>. The body should return vec![0.0, 1.0] (two checkpoint values).",
+          "hint":"`async fn` declares a function that returns a Future instead of running immediately — the caller drives it with `.await`. The signature is `async fn name() -> T`; the body looks like any other function body.",
+          "assertion":{
+            "type":"pattern",
+            "required":["async fn","load_checkpoint","-> Vec<f64>","vec!"],
+            "forbidden":[],
+            "structure":"async fn load_checkpoint() -> Vec<f64> { vec![0.0, 1.0] }",
+            "alternatives":{}
+          },
+          "tags":["async"],
+          "qa":{
+            "accept":[
+              "async fn load_checkpoint() -> Vec<f64> { vec![0.0, 1.0] }",
+              "async fn load_checkpoint()->Vec<f64>{vec![0.0,1.0]}",
+              "async fn load_checkpoint() -> Vec<f64> {\n    vec![0.0, 1.0]\n}"
+            ],
+            "reject":[
+              { "input":"fn load_checkpoint() -> Vec<f64> { vec![0.0, 1.0] }", "expect_msg":"missing `async fn`" },
+              { "input":"async fn load_checkpoint() { vec![0.0, 1.0] }",       "expect_msg":"missing `-> Vec<f64>`" },
+              { "input":"async fn load_checkpoint() -> Vec<f64> { }",          "expect_msg":"missing `vec!`" }
+            ]
+          } },
+        { "id":"rs_mas_02",
+          "prompt":"Inside an async context, call load_checkpoint() and await its result, binding the returned Vec<f64> to a variable named weights.",
+          "hint":"Rust's await is POSTFIX: `expr.await`, not `await expr`. This differs from Python/JavaScript, where await is a prefix keyword. Chain it onto the call: `something().await`.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","weights","load_checkpoint()",".await"],
+            "forbidden":[],
+            "structure":"let weights = load_checkpoint().await;",
+            "alternatives":{}
+          },
+          "tags":["async"],
+          "qa":{
+            "accept":[
+              "let weights = load_checkpoint().await;",
+              "let weights=load_checkpoint().await;",
+              "let weights = load_checkpoint().await ;"
+            ],
+            "reject":[
+              { "input":"let weights = await load_checkpoint();", "expect_msg":"missing `.await`" },
+              { "input":"let weights = load_checkpoint();",       "expect_msg":"missing `.await`" },
+              { "input":"weights = load_checkpoint().await;",     "expect_msg":"missing `let`" }
+            ]
+          } },
+        { "id":"rs_mas_03",
+          "prompt":"Given a trait Activation with a method apply(&self, x: f64) -> f64, and a unit struct Relu that implements it, bind a variable layer of type Box<dyn Activation> to a heap-boxed Relu. Use Box::new.",
+          "hint":"`Box<dyn Trait>` is a trait object — a heap-allocated value accessed through its trait interface, with the concrete type erased. `dyn` marks dynamic dispatch. Construct with `Box::new(value)`.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","layer","Box<dyn Activation>","Box::new(Relu)"],
+            "forbidden":[],
+            "structure":"let layer: Box<dyn Activation> = Box::new(Relu);",
+            "alternatives":{}
+          },
+          "tags":["traits"],
+          "qa":{
+            "accept":[
+              "let layer: Box<dyn Activation> = Box::new(Relu);",
+              "let layer:Box<dyn Activation>=Box::new(Relu);",
+              "let layer: Box<dyn Activation> = Box::new(Relu) ;"
+            ],
+            "reject":[
+              { "input":"let layer: Box<Activation> = Box::new(Relu);", "expect_msg":"missing `Box<dyn Activation>`" },
+              { "input":"let layer: Box<dyn Activation> = Relu;",       "expect_msg":"missing `Box::new(Relu)`" },
+              { "input":"let layer: dyn Activation = Box::new(Relu);",  "expect_msg":"missing `Box<dyn Activation>`" }
+            ]
+          } },
+        { "id":"rs_mas_04",
+          "prompt":"Bind table to an Rc<Vec<f64>> wrapping vec![0.1, 0.2] (a shared embedding table), then bind table_ref to a second handle on the same data using Rc::clone(&table).",
+          "hint":"`Rc<T>` is a reference-counted smart pointer for single-threaded shared ownership. `Rc::clone(&x)` makes a new handle to the SAME data (cheap — it bumps a counter, doesn't deep-copy). Many owners, one allocation.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","table","Rc::new","vec![0.1, 0.2]","table_ref"],
+            "forbidden":[],
+            "structure":"let table = Rc::new(vec![0.1, 0.2]); let table_ref = Rc::clone(&table);",
+            "alternatives":{
+              "Rc::clone(&table)":["table.clone()"]
+            }
+          },
+          "tags":["traits"],
+          "qa":{
+            "accept":[
+              "let table = Rc::new(vec![0.1, 0.2]); let table_ref = Rc::clone(&table);",
+              "let table=Rc::new(vec![0.1,0.2]);let table_ref=Rc::clone(&table);",
+              "let table = Rc::new(vec![0.1, 0.2]); let table_ref = table.clone();",
+              "let table = Rc::new(vec![0.1, 0.2]);\nlet table_ref = Rc::clone(&table);"
+            ],
+            "reject":[
+              { "input":"let table = vec![0.1, 0.2]; let table_ref = Rc::clone(&table);", "expect_msg":"missing `Rc::new`" },
+              { "input":"let table = Rc::new(vec![0.1, 0.2]); let table_ref = table;",    "expect_msg":"structure mismatch" },
+              { "input":"let table = Rc::new(vec![0.1, 0.2]);",                           "expect_msg":"missing `table_ref`" }
+            ]
+          } },
+        { "id":"rs_mas_05",
+          "prompt":"Bind weights to an Arc<Vec<f64>> wrapping vec![0.5, 0.6] — model weights that will be shared across threads.",
+          "hint":"`Arc<T>` is the atomic (thread-safe) counterpart to `Rc<T>`: use `Arc` when shared data crosses threads, `Rc` when it stays single-threaded. The 'A' is for atomic — the refcount uses atomic operations, slightly slower but thread-safe.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","weights","Arc::new","vec![0.5, 0.6]"],
+            "forbidden":[],
+            "structure":"let weights = Arc::new(vec![0.5, 0.6]);",
+            "alternatives":{}
+          },
+          "tags":["traits"],
+          "qa":{
+            "accept":[
+              "let weights = Arc::new(vec![0.5, 0.6]);",
+              "let weights=Arc::new(vec![0.5,0.6]);",
+              "let weights = Arc::new(vec![0.5, 0.6]) ;"
+            ],
+            "reject":[
+              { "input":"let weights = Rc::new(vec![0.5, 0.6]);", "expect_msg":"missing `Arc::new`" },
+              { "input":"let weights = vec![0.5, 0.6];",          "expect_msg":"missing `Arc::new`" },
+              { "input":"weights = Arc::new(vec![0.5, 0.6]);",    "expect_msg":"missing `let`" }
+            ]
+          } },
+        { "id":"rs_mas_06",
+          "prompt":"Bind x to the integer 42. Create a raw const pointer p to x with `&x as *const i32`. Then, inside an unsafe block, dereference p and bind the result to y.",
+          "hint":"Creating a raw pointer is safe; dereferencing one is not — the compiler can't guarantee it's still valid, so deref must go inside `unsafe { }`. Syntax: `&x as *const i32` makes the pointer, `*p` dereferences it.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let x = 42","let p = &x as *const i32","unsafe","let y","*p"],
+            "forbidden":[],
+            "structure":"let x = 42; let p = &x as *const i32; let y = unsafe { *p };",
+            "alternatives":{}
+          },
+          "tags":["unsafe"],
+          "qa":{
+            "accept":[
+              "let x = 42; let p = &x as *const i32; let y = unsafe { *p };",
+              "let x=42;let p=&x as *const i32;let y=unsafe{*p};",
+              "let x = 42;\nlet p = &x as *const i32;\nlet y = unsafe { *p };"
+            ],
+            "reject":[
+              { "input":"let x = 42; let p = &x as *const i32; let y = *p;",          "expect_msg":"missing `unsafe`" },
+              { "input":"let x = 42; let p = &x; let y = unsafe { *p };",             "expect_msg":"missing `let p = &x as *const i32`" },
+              { "input":"let x = 42; let p = &x as *const i32; let y = unsafe { p };","expect_msg":"missing `*p`" }
+            ]
+          } },
+        { "id":"rs_mas_07",
+          "prompt":"Define an FFI-exported activation function: a `pub extern \"C\"` function named relu that takes x: f64 and returns f64, computing if x > 0.0 { x } else { 0.0 }.",
+          "hint":"`extern \"C\"` gives a function the C ABI so it can be called across the FFI boundary (e.g. from C, Python ctypes, or a CUDA host). `pub` exports it. The body is ordinary Rust.",
+          "assertion":{
+            "type":"pattern",
+            "required":["pub extern \"C\" fn","relu","x: f64","-> f64","if x > 0.0","else","0.0"],
+            "forbidden":[],
+            "structure":"pub extern \"C\" fn relu(x: f64) -> f64 { if x > 0.0 { x } else { 0.0 } }",
+            "alternatives":{}
+          },
+          "tags":["unsafe"],
+          "qa":{
+            "accept":[
+              "pub extern \"C\" fn relu(x: f64) -> f64 { if x > 0.0 { x } else { 0.0 } }",
+              "pub extern \"C\" fn relu(x:f64)->f64{if x>0.0{x}else{0.0}}",
+              "pub extern \"C\" fn relu(x: f64) -> f64 {\n    if x > 0.0 { x } else { 0.0 }\n}"
+            ],
+            "reject":[
+              { "input":"pub fn relu(x: f64) -> f64 { if x > 0.0 { x } else { 0.0 } }",         "expect_msg":"missing `pub extern \"C\" fn`" },
+              { "input":"extern \"C\" fn relu(x: f64) -> f64 { if x > 0.0 { x } else { 0.0 } }", "expect_msg":"missing `pub extern \"C\" fn`" },
+              { "input":"pub extern \"C\" fn relu(x: f64) -> f64 { if x > 0.0 { x } }",          "expect_msg":"missing `else`" }
+            ]
+          } },
+        { "id":"rs_mas_08",
+          "prompt":"Bind layers to a Vec<Box<dyn Fn(f64) -> f64>> containing one boxed closure: Box::new(|x| x * 2.0). (A minimal stack of layer transforms.)",
+          "hint":"`Box<dyn Fn(f64) -> f64>` is a heap-boxed closure behind the Fn trait — needed because closures have anonymous types, so a Vec can't hold them directly without boxing. Each element is `Box::new(|x| ...)`.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","layers","Vec<Box<dyn Fn(f64) -> f64>>","vec!","Box::new"],
+            "forbidden":[],
+            "structure":"let layers: Vec<Box<dyn Fn(f64) -> f64>> = vec![Box::new(|x| x * 2.0)];",
+            "alternatives":{
+              "|x| x * 2.0":["|x| 2.0 * x"]
+            }
+          },
+          "tags":["closures"],
+          "qa":{
+            "accept":[
+              "let layers: Vec<Box<dyn Fn(f64) -> f64>> = vec![Box::new(|x| x * 2.0)];",
+              "let layers:Vec<Box<dyn Fn(f64)->f64>>=vec![Box::new(|x|x*2.0)];",
+              "let layers: Vec<Box<dyn Fn(f64) -> f64>> = vec![Box::new(|x| 2.0 * x)];"
+            ],
+            "reject":[
+              { "input":"let layers: Vec<dyn Fn(f64) -> f64> = vec![Box::new(|x| x * 2.0)];",      "expect_msg":"missing `Vec<Box<dyn Fn(f64) -> f64>>`" },
+              { "input":"let layers: Vec<Box<dyn Fn(f64) -> f64>> = vec![|x| x * 2.0];",           "expect_msg":"missing `Box::new`" },
+              { "input":"let layers: Vec<Box<dyn Fn(f64) -> f64>> = vec![Box::new(|x| x + 2.0)];", "expect_msg":"structure mismatch" }
+            ]
+          } },
+        { "id":"rs_mas_09",
+          "prompt":"Given logits: &Vec<f64>, find the index of the maximum logit (argmax → predicted class). Use .iter().enumerate(), .max_by() comparing the values with partial_cmp, and .map(|(i, _)| i) to extract the index. Bind it to predicted.",
+          "hint":"argmax = index of the max. `.enumerate()` pairs each value with its index as `(i, v)`. `.max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())` finds the max by value (f64 needs partial_cmp since it isn't fully Ord). `.map(|(i, _)| i)` keeps just the index.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","predicted","logits.iter()",".enumerate()",".max_by(",".partial_cmp(","i"],
+            "forbidden":[],
+            "structure":"let predicted = logits.iter().enumerate().max_by(|a, b| a.1.partial_cmp(&b.1).unwrap()).map(|(i, _)| i);",
+            "alternatives":{}
+          },
+          "tags":["iterators"],
+          "qa":{
+            "accept":[
+              "let predicted = logits.iter().enumerate().max_by(|a, b| a.1.partial_cmp(&b.1).unwrap()).map(|(i, _)| i);",
+              "let predicted=logits.iter().enumerate().max_by(|a,b|a.1.partial_cmp(&b.1).unwrap()).map(|(i,_)|i);",
+              "let predicted = logits.iter().enumerate().max_by(|a, b| a.1.partial_cmp(&b.1).unwrap()).map(|(i, _)| i) ;"
+            ],
+            "reject":[
+              { "input":"let predicted = logits.iter().max_by(|a, b| a.1.partial_cmp(&b.1).unwrap()).map(|(i, _)| i);", "expect_msg":"missing `.enumerate()`" },
+              { "input":"let predicted = logits.iter().enumerate().max().map(|(i, _)| i);",                             "expect_msg":"missing `.max_by(`" },
+              { "input":"let predicted = logits.iter().enumerate().max_by(|a, b| a.1.partial_cmp(&b.1).unwrap());",     "expect_msg":"structure mismatch" }
+            ]
+          } },
+        { "id":"rs_mas_10",
+          "prompt":"Compute the dot product of two vectors a: &Vec<f64> and b: &Vec<f64> — the core of a forward pass. Zip the two iterators, multiply each pair, and sum. Bind the f64 result to dot. Use a.iter().zip(b.iter()), .map() with a tuple-destructuring closure, and .sum().",
+          "hint":"`a.iter().zip(b.iter())` yields pairs `(&f64, &f64)`. A tuple-destructuring closure `|(x, y)| x * y` unpacks each pair and multiplies. `.sum()` totals the products. The annotation `: f64` tells `.sum()` its output type. This is the dot product — the inner loop of every matrix multiply and dense layer.",
+          "assertion":{
+            "type":"pattern",
+            "required":["let","dot: f64","a.iter().zip(b.iter())",".map(",".sum"],
+            "forbidden":[],
+            "structure":"let dot: f64 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();",
+            "alternatives":{
+              "|(x, y)| x * y":["|(&x, &y)| x * y","|(x, y)| *x * *y","|(x, y)| y * x"],
+              ".sum()":[".sum::<f64>()"]
+            }
+          },
+          "tags":["iterators","closures"],
+          "qa":{
+            "accept":[
+              "let dot: f64 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();",
+              "let dot:f64=a.iter().zip(b.iter()).map(|(x,y)|x*y).sum();",
+              "let dot: f64 = a.iter().zip(b.iter()).map(|(&x, &y)| x * y).sum();",
+              "let dot: f64 = a.iter().zip(b.iter()).map(|(x, y)| *x * *y).sum();",
+              "let dot: f64 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum::<f64>();"
+            ],
+            "reject":[
+              { "input":"let dot: f64 = a.iter().zip(b.iter()).map(|(x, y)| x + y).sum();", "expect_msg":"structure mismatch" },
+              { "input":"let dot = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();",      "expect_msg":"missing `dot: f64`" },
+              { "input":"let dot: f64 = a.iter().map(|(x, y)| x * y).sum();",               "expect_msg":"missing `a.iter().zip(b.iter())`" }
+            ]
+          } }
+      ],
     },
     /* STAGE2_RUST_QUESTIONS_END */
   };
