@@ -2709,6 +2709,129 @@
               { "input":"same_type<T: Copy>(a: T, b: T) -> (T, T) { (a, b) }",       "expect_msg":"missing `fn`" },
               { "input":"fn same_type<T: Copy>(mut a: T, b: T) -> (T, T) { (a, b) }","expect_msg":"uses `mut`" }
             ]
+          } },
+        { "id":"rs_exp_06",
+          "prompt":"Define a trait named Activation with a required method apply(&self, x: f64) -> f64 and a default method name(&self) -> &str that returns \"activation\".",
+          "hint":"A trait method with a body is a *default* — implementors inherit it unless they override it. A method without a body (just a signature + `;`) is *required*. Both can live in the same trait.",
+          "assertion":{
+            "type":"pattern",
+            "required":["trait","Activation","fn","apply","&self","x: f64","-> f64","fn","name","-> &str","\"activation\""],
+            "forbidden":[],
+            "structure":"trait Activation { fn apply(&self, x: f64) -> f64; fn name(&self) -> &str { \"activation\" } }",
+            "alternatives":{}
+          },
+          "tags":["traits"],
+          "qa":{
+            "accept":[
+              "trait Activation { fn apply(&self, x: f64) -> f64; fn name(&self) -> &str { \"activation\" } }",
+              "trait Activation{fn apply(&self,x:f64)->f64;fn name(&self)->&str{\"activation\"}}",
+              "trait Activation {\n    fn apply(&self, x: f64) -> f64;\n    fn name(&self) -> &str { \"activation\" }\n}"
+            ],
+            "reject":[
+              { "input":"trait Activation { fn apply(&self, x: f64) -> f64; fn name(&self) -> &str; }",            "expect_msg":"missing `\"activation\"`" },
+              { "input":"trait Activation { fn apply(&self, x: f64); fn name(&self) -> &str { \"activation\" } }", "expect_msg":"missing `-> f64`" },
+              { "input":"Activation { fn apply(&self, x: f64) -> f64; fn name(&self) -> &str { \"activation\" } }", "expect_msg":"missing `trait`" }
+            ]
+          } },
+        { "id":"rs_exp_07",
+          "prompt":"Define a generic function larger that takes two arguments a and b of type T where T: Copy + PartialOrd, and returns the larger of the two (type T). Use an if/else.",
+          "hint":"Multiple trait bounds combine with `+`: `T: Copy + PartialOrd`. `Copy` lets you return `a` or `b` by value; `PartialOrd` enables the `>` comparison. Bounds go after the type parameter in the angle brackets.",
+          "assertion":{
+            "type":"pattern",
+            "required":["fn","larger","a: T","b: T","-> T","if a > b","else"],
+            "forbidden":[],
+            "structure":"fn larger<T: Copy + PartialOrd>(a: T, b: T) -> T { if a > b { a } else { b } }",
+            "alternatives":{
+              "<T: Copy + PartialOrd>":["<T: PartialOrd + Copy>"]
+            }
+          },
+          "tags":["generics","traits"],
+          "qa":{
+            "accept":[
+              "fn larger<T: Copy + PartialOrd>(a: T, b: T) -> T { if a > b { a } else { b } }",
+              "fn larger<T:Copy+PartialOrd>(a:T,b:T)->T{if a>b{a}else{b}}",
+              "fn larger<T: PartialOrd + Copy>(a: T, b: T) -> T { if a > b { a } else { b } }",
+              "fn larger<T: Copy + PartialOrd>(a: T, b: T) -> T {\n    if a > b { a } else { b }\n}"
+            ],
+            "reject":[
+              { "input":"fn larger<T: Copy>(a: T, b: T) -> T { if a > b { a } else { b } }",            "expect_msg":"structure mismatch" },
+              { "input":"fn larger<T: PartialOrd>(a: T, b: T) -> T { if a > b { a } else { b } }",      "expect_msg":"structure mismatch" },
+              { "input":"larger<T: Copy + PartialOrd>(a: T, b: T) -> T { if a > b { a } else { b } }",  "expect_msg":"missing `fn`" }
+            ]
+          } },
+        { "id":"rs_exp_08",
+          "prompt":"Given a struct Accumulator with a field total: f64, write an impl block with a method add(&mut self, x: f64) that adds x to self.total.",
+          "hint":"`&mut self` borrows the instance mutably so the method can modify its fields. Compare to `&self` (read-only borrow) — you need the `mut` form to assign to `self.total`.",
+          "assertion":{
+            "type":"pattern",
+            "required":["impl","Accumulator","fn","add","&mut self","x: f64","self.total"],
+            "forbidden":[],
+            "structure":"impl Accumulator { fn add(&mut self, x: f64) { self.total += x; } }",
+            "alternatives":{
+              "self.total += x":["self.total = self.total + x"]
+            }
+          },
+          "tags":["mutability","traits"],
+          "qa":{
+            "accept":[
+              "impl Accumulator { fn add(&mut self, x: f64) { self.total += x; } }",
+              "impl Accumulator{fn add(&mut self,x:f64){self.total+=x;}}",
+              "impl Accumulator { fn add(&mut self, x: f64) { self.total = self.total + x; } }"
+            ],
+            "reject":[
+              { "input":"impl Accumulator { fn add(&self, x: f64) { self.total += x; } }", "expect_msg":"missing `&mut self`" },
+              { "input":"impl Accumulator { fn add(&mut self, x: f64) { total += x; } }",  "expect_msg":"missing `self.total`" },
+              { "input":"Accumulator { fn add(&mut self, x: f64) { self.total += x; } }",  "expect_msg":"missing `impl`" }
+            ]
+          } },
+        { "id":"rs_exp_09",
+          "prompt":"Given a struct EpochIter { current: usize, max: usize }, implement Iterator for it so that next() yields the current epoch number (usize) and advances, returning None once current reaches max. Set type Item = usize.",
+          "hint":"`impl Iterator for T` requires two things: an associated type `type Item = ...;` declaring what the iterator yields, and `fn next(&mut self) -> Option<Self::Item>`. Return `Some(value)` to yield, `None` to stop.",
+          "assertion":{
+            "type":"pattern",
+            "required":["impl Iterator for EpochIter","type Item = usize","fn next(&mut self)","-> Option<","self.current","self.max","Some","None"],
+            "forbidden":[],
+            "structure":"impl Iterator for EpochIter { type Item = usize; fn next(&mut self) -> Option<usize> { if self.current < self.max { let e = self.current; self.current += 1; Some(e) } else { None } } }",
+            "alternatives":{
+              "-> Option<usize>":["-> Option<Self::Item>"]
+            }
+          },
+          "tags":["iterators","traits"],
+          "qa":{
+            "accept":[
+              "impl Iterator for EpochIter { type Item = usize; fn next(&mut self) -> Option<usize> { if self.current < self.max { let e = self.current; self.current += 1; Some(e) } else { None } } }",
+              "impl Iterator for EpochIter{type Item=usize;fn next(&mut self)->Option<usize>{if self.current<self.max{let e=self.current;self.current+=1;Some(e)}else{None}}}",
+              "impl Iterator for EpochIter { type Item = usize; fn next(&mut self) -> Option<Self::Item> { if self.current < self.max { let e = self.current; self.current += 1; Some(e) } else { None } } }"
+            ],
+            "reject":[
+              { "input":"impl Iterator for EpochIter { fn next(&mut self) -> Option<usize> { if self.current < self.max { let e = self.current; self.current += 1; Some(e) } else { None } } }", "expect_msg":"missing `type Item = usize`" },
+              { "input":"impl EpochIter { type Item = usize; fn next(&mut self) -> Option<usize> { if self.current < self.max { let e = self.current; self.current += 1; Some(e) } else { None } } }", "expect_msg":"missing `impl Iterator for EpochIter`" },
+              { "input":"impl Iterator for EpochIter { type Item = usize; fn next(&self) -> Option<usize> { if self.current < self.max { let e = self.current; self.current += 1; Some(e) } else { None } } }", "expect_msg":"missing `fn next(&mut self)`" }
+            ]
+          } },
+        { "id":"rs_exp_10",
+          "prompt":"Define a function parse_lr(s: &str) -> Result<f64, std::num::ParseFloatError> that parses s as an f64 using s.parse(), propagates any error with the ? operator, and returns the parsed value wrapped in Ok. (lr = learning rate.)",
+          "hint":"The `?` operator propagates: on Ok(v) it gives you v, on Err(e) it returns that error from your function early — it does NOT panic (that's what .unwrap() does). So `let v = s.parse()?;` then `Ok(v)`. In Master tier you'll see `?` used inside async functions and combined with owned-sharing wrappers like Rc/Arc/Box.",
+          "assertion":{
+            "type":"pattern",
+            "required":["fn parse_lr","s: &str","-> Result<f64, std::num::ParseFloatError>","s.parse()","?","Ok("],
+            "forbidden":[],
+            "structure":"fn parse_lr(s: &str) -> Result<f64, std::num::ParseFloatError> { let v = s.parse()?; Ok(v) }",
+            "alternatives":{}
+          },
+          "tags":["error-handling","generics"],
+          "qa":{
+            "accept":[
+              "fn parse_lr(s: &str) -> Result<f64, std::num::ParseFloatError> { let v = s.parse()?; Ok(v) }",
+              "fn parse_lr(s:&str)->Result<f64,std::num::ParseFloatError>{let v=s.parse()?;Ok(v)}",
+              "fn parse_lr(s: &str) -> Result<f64, std::num::ParseFloatError> {\n    let v = s.parse()?;\n    Ok(v)\n}"
+            ],
+            "reject":[
+              { "input":"fn parse_lr(s: &str) -> Result<f64, std::num::ParseFloatError> { let v = s.parse(); Ok(v) }",        "expect_msg":"missing `?`" },
+              { "input":"fn parse_lr(s: &str) -> Result<f64, std::num::ParseFloatError> { let v = s.parse().unwrap(); Ok(v) }", "expect_msg":"missing `?`" },
+              { "input":"fn parse_lr(s: &str) -> f64 { let v = s.parse()?; v }",                                            "expect_msg":"missing `-> Result<f64, std::num::ParseFloatError>`" },
+              { "input":"parse_lr(s: &str) -> Result<f64, std::num::ParseFloatError> { let v = s.parse()?; Ok(v) }",         "expect_msg":"missing `fn parse_lr`" }
+            ]
           } }
       ],
       master: [],
