@@ -949,12 +949,12 @@ KNOWN RISKS
 ```
 
 ### v4.0 handoff notes
-*Completed: ⚠️ PENDING ship date (backfill at task 11, with the md5)*
+*Completed: 2026-06-22*
 
 **Build artifact:**
-- `index.html` — size ⚠️ PENDING (task-11 rebuild)
-- md5: ⚠️ PENDING (task-11 rebuild)
-- Source zip: ⚠️ PENDING — `ghost-training-v4.0.zip` published at ship
+- `index.html` — 509,223 (build.py char count, consistent with prior entries; 510,596 bytes via `wc -c`, delta is multi-byte UTF-8)
+- md5: `97614561a6e9e885c9398de1531eb3a7`
+- Source zip: `ghost-training-v4.0.zip` (published at ship)
 
 **Shipped (Rust track, complete):**
 
@@ -976,7 +976,7 @@ KNOWN RISKS
 - Content sweep (6 files): stray-marker scan 0, block-level zero-accept 0 across 20 examples, targeted lint 0.
 - `build.py --check` clean with rust in the loop; 200 qids extract (50/track).
 - `node --check` on the inline script clean after wiring (no syntax break).
-- **⚠️ PENDING (task 11, with md5 backfill):** full JS↔Python grader parity across all 50, sabotage test on a Stage-3 question, per-track bundle md5 audit (SQL/Python/JS expected byte-identical to v3.10; rust new), browser smoke test confirming `start rust` routes/renders/rolls. Task-9 wiring is provisionally complete until that smoke test.
+- **Ship-gate verification (complete):** JS↔Python parity — 319 cases / 0 disagreements; sabotage on `rs_mas_10` passed (break flips all 5 accepts to fail, revert clean); per-track audit — SQL/Python/JS byte-identical to v3.10, rust new (`e95604cf…`); browser smoke test **PASS** (architect-confirmed, screenshot evidence — route/render/grade/advance/nav/stamps all confirmed live). **Task-9 wiring is now VERIFIED** (was provisional until this smoke test).
 
 **Architectural decisions locked this sprint** (v4.1 must honor):
 
