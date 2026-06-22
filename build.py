@@ -802,8 +802,15 @@ def build_track_bundle(track: str, content_dir: Path, *, valid_qids: set[str],
 
 
 def extract_valid_qids(template_text: str) -> set[str]:
-    """Pull the set of valid question ids out of the template's QUESTIONS const."""
-    return set(re.findall(r"id:'([a-z0-9_]+)'", template_text))
+    """Pull the set of valid question ids out of the template's QUESTIONS const.
+
+    Matches both the legacy bare-key single-quote form used by SQL/Python/JS
+    (`id:'sql_intro_01'`) AND the Rust questions' quoted-key double-quote form
+    (`"id":"rs_intro_01"`). The optional quotes around the `id` key plus either
+    quote style on the value cover both; without this the 50 Rust qids would be
+    invisible to `warn_unknown_qids`, so any `<<qid:rs_...>>` reference in Rust
+    content would be flagged as unknown."""
+    return set(re.findall(r"""["']?id["']?\s*:\s*["']([a-z0-9_]+)["']""", template_text))
 
 
 # --------------------------------------------------------------------------------------
@@ -1003,7 +1010,7 @@ def build(repo_root: Path, *, check_only: bool) -> int:
         track: build_track_bundle(
             track, content_dir, valid_qids=valid_qids, errors=errors,
         )
-        for track in ("sql", "python", "javascript")
+        for track in ("sql", "python", "javascript", "rust")
     }
 
     if errors:
@@ -1041,12 +1048,17 @@ def build(repo_root: Path, *, check_only: bool) -> int:
                    for v in [bundle["javascript"]["cheatsheet"]["ansi"],
                              *bundle["javascript"]["tiers"].values(),
                              *(s for arr in bundle["javascript"]["examples"].values() for s in arr)])
+    rust_words = sum(len(re.sub(r"\x1b\[[0-9;]*m", "", v).split())
+                     for v in [bundle["rust"]["cheatsheet"]["ansi"],
+                               *bundle["rust"]["tiers"].values(),
+                               *(s for arr in bundle["rust"]["examples"].values() for s in arr)])
     print(f"Built {out_path}")
     print(f"  md5:        {md5}")
     print(f"  size:       {len(output):,} bytes")
     print(f"  sql words:  ~{sql_words}")
     print(f"  py words:   ~{py_words}")
     print(f"  js words:   ~{js_words}")
+    print(f"  rust words: ~{rust_words}")
     print(f"  warnings:   {len(errors)}")
     return 1 if errors else 0
 
