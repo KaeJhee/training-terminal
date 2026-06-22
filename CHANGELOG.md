@@ -12,24 +12,24 @@ Next milestone candidate is v4.1 (C++ + CUDA). v4.0 proved the pattern-match par
 
 ---
 
-## [v4.0] — ⚠️ PENDING ship date (backfill at task 11)
+## [v4.0] — 2026-06-22
 
 Adds **Rust** as the fourth track — and the first graded by pattern-matching rather than execution. No sandbox, no runtime: a `RustEngine` normalizes the submission and compares it against a canonical structure with an alternatives mechanic, refining failures through grammar-lite tag-driven messages. Complete track: 50 questions across 5 tiers, a 6-file content tree, and `start rust` wired through the UI.
 
 ### Build artifact
 
-- **`index.html`** md5: ⚠️ **PENDING — backfill after task-11 rebuild** (this entry is authored before the ship-time `python3 build.py`; a literal "PENDING" shipping here is an obvious error)
-- **size:** ⚠️ **PENDING — backfill after task-11 rebuild**
+- **`index.html`** md5: `97614561a6e9e885c9398de1531eb3a7`
+- **size:** 509,223 (build.py char count, consistent with prior entries; 510,596 bytes via `wc -c` — delta is multi-byte UTF-8 in the template)
 - **build pipeline:** Symmetric across all four tracks. `build.py` now iterates `("sql","python","javascript","rust")`; the qid-extraction regex was widened to match Rust's quoted-key `"id":"rs_..."` form alongside the legacy bare-key `id:'...'` form (all 200 qids now extract, 50 per track).
 
 ### Per-track bundle audit (vs v3.10)
 
 | Track | v4.0 md5 | v3.10 reference | Expected |
 |---|---|---|---|
-| sql | ⚠️ PENDING | `aeeb91131bf238fb34e6cacd0c949390` | byte-identical (no SQL content changed) |
-| python | ⚠️ PENDING | `7e7270968e5d7ca25f919f03c76aa828` | byte-identical (no Python content changed) |
-| javascript | ⚠️ PENDING | `f28fcdd26a2a6aacf321ba6569fdfff5` | byte-identical (no JS content changed) |
-| rust | ⚠️ PENDING | — | new (cheatsheet + 5 tier files) |
+| sql | `aeeb91131bf238fb34e6cacd0c949390` | `aeeb91131bf238fb34e6cacd0c949390` | ✅ byte-identical (no SQL content changed) |
+| python | `7e7270968e5d7ca25f919f03c76aa828` | `7e7270968e5d7ca25f919f03c76aa828` | ✅ byte-identical (no Python content changed) |
+| javascript | `f28fcdd26a2a6aacf321ba6569fdfff5` | `f28fcdd26a2a6aacf321ba6569fdfff5` | ✅ byte-identical (no JS content changed) |
+| rust | `e95604cf32b3ebc51540da5f36cfb10a` | — | new (cheatsheet + 5 tier files) |
 
 The full `index.html` md5 will differ from v3.10 because the template body gained the `start rust` wiring, the v4.0 version stamps, and the embedded Rust content bundle. The three existing tracks' content bundles are expected byte-identical to v3.10 (their source markdown is untouched) — confirmed by the task-11 per-track audit, same method as v3.10's audit vs v3.9.
 
@@ -57,7 +57,7 @@ The full `index.html` md5 will differ from v3.10 because the template body gaine
 - **QA harness** (`tests/qa_harness.py`): **168 accept / 0 fail, 151 reject / 0 fail** across all 50 questions. Permanent regression home; reused by v4.1.
 - **Content sweep** (all 6 files): rendered-output stray-marker scan = 0; block-level zero-accept = 0 across all 20 worked examples (no example's code grades as a correct answer to any question in its tier); targeted lint = 0.
 - **build.py --check**: Lint clean with rust in the track loop; 200 qids extracted.
-- **Ship-gate verification (⚠️ PENDING task 11):** the following run at the rebuild and their results backfill here alongside the md5 — full JS↔Python grader parity across all 50 questions, sabotage test on a Stage-3 question, per-track bundle md5 audit, and the browser smoke test confirming `start rust` routes/renders/rolls. Authored as the plan now; results pending.
+- **Ship-gate verification (task 11, complete):** full JS↔Python grader parity — 319 cases (168 accept + 151 reject), 0 disagreements (the JS `RustEngine` from the shipped artifact agrees with the Python grader on every case); sabotage test on `rs_mas_10` (capstone) — breaking the canonical (`x * y`→`x - y`) flips all 5 accept cases to fail, revert clean; per-track bundle md5 audit — SQL/Python/JS byte-identical to v3.10, rust new (table above); browser smoke test — **PASS** (architect-confirmed, screenshot evidence): `start rust` routes to a Rust question (not JS), the v4.0 banner + four-track usage string render live, left-rail/ticker/KPI show RUST (TOTAL 0/200), the cheatsheet ASCII ownership diagram renders with zero stray `<<`/`>>` markers, and the full grade→reject-with-grammar-lite-reason→accept→advance loop runs on `rs_intro_01`.
 
 ### Documented
 
