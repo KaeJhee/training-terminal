@@ -949,7 +949,88 @@ KNOWN RISKS
 ```
 
 ### v4.0 handoff notes
-*Completed: —*
+*Completed: ⚠️ PENDING ship date (backfill at task 11, with the md5)*
+
+**Build artifact:**
+- `index.html` — size ⚠️ PENDING (task-11 rebuild)
+- md5: ⚠️ PENDING (task-11 rebuild)
+- Source zip: ⚠️ PENDING — `ghost-training-v4.0.zip` published at ship
+
+**Shipped (Rust track, complete):**
+
+1. **`RustEngine`** — the first pattern-match (non-executing) grader. Grades forbidden → required → structure-with-alternatives, then grammar-lite tag-driven refinement of structure-mismatch failures. Built in Stage 2; **graded all 50 questions through Stage 3 with zero modifications** — the headline validation of the Stage 1 design.
+
+2. **50 questions, 5 tiers, 10 each.** Introductory (let/mut, types, println!, Vec, tuples, if/else, match, fn), Amateur (Vec/String/Option/Result, if let, match-on-Option), Intermediate (ownership/borrowing, iterators, closures incl. closure-deref), Experienced (traits, generics, lifetimes-in-context, Result+`?`), Master (async/.await, smart pointers, unsafe/FFI, dot-product capstone `rs_mas_10`).
+
+3. **`RUST_ALTERNATIVES_LIBRARY`** — 5 named equivalence groups. 2 exercised by v4.0 questions (`NUMERIC_LITERAL_SUFFIXES`, `CLOSURE_DEREF_VARIANTS`); 3 reserved (see Known issues).
+
+4. **Content tree** `src/content/rust/` — cheatsheet (~608 words) + 5 tier files (~2,800 total), `<<tag>>` syntax, ASCII ownership diagrams in the cheatsheet and Intermediate file.
+
+5. **`start rust` wired** — RustEngine at boot + engine-selector ternaries; rust added to KPI rollups, left rail, ticker, cmdGoto, reset counts, footer status, help/usage/placeholder text. `build.py` made rust-aware (track tuple + qid regex widened to 200 qids).
+
+6. **Version stamped v4.0** — footer, both boot banners, CONTENT_BUNDLE comment, README badge. (CHANGELOG entry = the 5th stamp site, authored with this handoff.)
+
+**Verification record:**
+
+- QA harness: **168 accept / 0 fail, 151 reject / 0 fail** across 50 questions.
+- Content sweep (6 files): stray-marker scan 0, block-level zero-accept 0 across 20 examples, targeted lint 0.
+- `build.py --check` clean with rust in the loop; 200 qids extract (50/track).
+- `node --check` on the inline script clean after wiring (no syntax break).
+- **⚠️ PENDING (task 11, with md5 backfill):** full JS↔Python grader parity across all 50, sabotage test on a Stage-3 question, per-track bundle md5 audit (SQL/Python/JS expected byte-identical to v3.10; rust new), browser smoke test confirming `start rust` routes/renders/rolls. Task-9 wiring is provisionally complete until that smoke test.
+
+**Architectural decisions locked this sprint** (v4.1 must honor):
+
+1. **Pattern-match grading order is fixed:** forbidden → required → structure+alternatives → grammar-lite. Any new track reuses this; changing it invalidates every question's qa block.
+2. **Required holds the invariant prefix; alternatives hold the parametrization.** The dominant authoring pitfall (8 appearances across the bank). A parametrized token in `required` makes its alternative dead code.
+3. **A library group's equivalence claim is tier-relative** — and the only error class the harness cannot catch (semantic, not mechanical). Verify a group fits a question's *lesson* before reusing it (`rs_exp_10`).
+4. **Lint verifies structure, not rendered correctness.** The rendered-output stray-marker scan is a required gate alongside `build.py --check` for any `<<tag>>`-content track.
+5. **No adjacent `>>` in rendered visible text** (render-safety + detector-trustworthiness). Teach nested types via inferred code.
+6. **Lifetimes only in context** — never abstract puzzles (honored: `Doc<'a>`, `Window<'a>` hold real borrows).
+
+**ML-flavor ratio per tier (target / actual):**
+
+| Tier | Target (P/A/E) | Actual | Status |
+|---|---|---|---|
+| Introductory | 100/0/0 | **100/0/0** | on target |
+| Amateur | 60/20/20 | **60/20/20** | on target |
+| Intermediate | 30/30/40 | **30/30/40** | on target |
+| Experienced | 20/20/60 | 50/10/40 | **forced overshoot** — Stage 2 pre-locked 5 pure questions before ML-targets applied; ceiling was 50/x/x. Precedent: v3.9 JS Experienced landed 50/0/50. |
+| Master | 10/10/80 | **10/10/80** | on target (honest hit — `rs_mas_06` raw-pointer unsafe is pure by nature; ML-framing it would be the contrivance) |
+
+Three tiers dead-on, Master dead-on, Experienced the one divergence — and *forced*, not elective (documented in the CHANGELOG as a deliberate decision, not a calibration miss).
+
+**Known issues / follow-ups for v4.1** (none blocking):
+
+- **2-of-5 library coverage.** `RESULT_PROPAGATION` is mis-scoped (it equates `?` with the panic-forms `.unwrap()`/`.expect()`; rename to `RESULT_VALUE_EXTRACTION` or split). `STRING_TYPE_VARIANTS` / `ITER_COLLECT_VARIANTS` unused — no question's prompt scope needed them; not forced in.
+- **qid cross-references deferred.** Regex now accepts `<<qid:rs_...>>`, but Rust content ships without them. Post-v4.0 polish.
+- **Math-operator errors → "structure mismatch."** Grammar-lite has no arithmetic-intent rule; a documented boundary of pattern-match grading, not a gap.
+- **JS-prose cross-ref sweep still deferred (carried from v3.10, verified still present).** v3.10 reframed Q29/Q47 but left two now-imprecise content cross-refs, flagged then as a v4.0 sweep candidate; v4.0 focused on Rust and didn't do it. Still live: `tier-intermediate.md` cites `<<qid:js_int_09>>` under its `# JSON` heading though Q29 is now about async error-handling, not JSON.parse; `tier-master.md` cites `<<qid:js_mas_07>>` under `THE THIS BINDING GOTCHA` though Q47 is now parameter-shadowing. Refs stay defensible (broader skill family); the headings are imprecise. (Distinct from task 10's README refresh, which is the only README content v4.0 touches.)
+
+**What I'd do differently next time:**
+
+1. **Apply ML-flavor targets to the Stage 2 representative slice.** Experienced overshot only because its 5 Stage-2 questions were authored pre-target. A future track should tag the representative slice with its eventual ratio so the full tier can hit target.
+2. **Add the rendered-output stray-marker scan to `build.py` itself**, not just the authoring harness. The malformed-into-literal blind spot is a permanent lint gap; closing it in the build is a small, high-value change.
+3. **Author content via inferred code from the start** where types nest — reaching for explicit annotations first (then walking them back for the `>>` hazard) cost a re-draft on `tier-master`.
+
+**Reusable techniques v4.1 (C++/CUDA candidate) inherits:**
+
+These are what the sprint's findings set up for a non-executing C++/CUDA track — the techniques transfer directly to template-syntax nesting and GPU-primitive framing:
+
+- **Inferred-code for nested generics** → C++ `vector<vector<float>>` / `unique_ptr<Tensor<float>>` shown via `auto`/inference to avoid adjacent `>>` in rendered visible text (the C++ `>>` hazard is identical, and worse — C++ even had the historical `>>` template-close lexing bug).
+- **Bridge-example technique** (use the form the next tier replaces; capstone-adjacent previews the skill-category via a different primitive).
+- **Rendered-output stray-marker scan** as a content gate (lint verifies structure, not render).
+- **Regex-verified-by-count** (a matcher fix is verified by match-count vs a known total, never by absence-of-error).
+- **The QA harness** (`tests/qa_harness.py`) is the permanent regression home; v4.1 extends it for C++/CUDA grading.
+
+**Exploratory candidate (lower readiness than C++/CUDA): LangChain/LangGraph.** Flagged as a future track of interest (learning-interest motivated), but with significant open design problems that distinguish it from the C++/CUDA candidate:
+- These are rapidly-evolving Python *frameworks*, not stable languages. API churn means "correct" code shifts across versions — a moving target the pattern-match grader (built for stable syntax) may not fit.
+- Much of the actual skill is architectural (chain/graph composition) rather than syntactic — the opposite of what pattern-match grading captures well.
+- OPEN QUESTION before this is a real candidate: does the pattern-match paradigm fit a framework track at all, or would it need a different grading approach (structural-AST matching, or partial execution against a pinned framework version)? Unresolved; needs its own design pass — not a "just author 50 questions" track like C++/CUDA would be.
+Recorded as a genuine learning-interest direction, but explicitly NOT at C++/CUDA's readiness — C++/CUDA inherits worked-out techniques and is a clean fit for the existing engine; LangChain sits below it as exploratory.
+
+**Test artifacts** (not shipped, reference for v4.1):
+- `docs/v4.0-authoring-notes.md` — the full per-question authoring record and the source for the CHANGELOG "Documented" principles. Stays in the repo.
+- The content-verification one-liners (block-level zero-accept, stray-marker scan via `build_track_bundle`) — reusable as-is for v4.1 content.
 
 ---
 

@@ -1,17 +1,45 @@
 # Ghost Training Terminal
 
 ![version](https://img.shields.io/badge/version-v4.0-e8a020?style=flat-square)
-![tracks](https://img.shields.io/badge/tracks-SQL%20%7C%20Python%20%7C%20JavaScript-3cb8c0?style=flat-square)
+![tracks](https://img.shields.io/badge/tracks-SQL%20%7C%20Python%20%7C%20JavaScript%20%7C%20Rust-3cb8c0?style=flat-square)
 ![tier system](https://img.shields.io/badge/tiers-5-3ab86e?style=flat-square)
 
-A self-hosted, browser-based training terminal for SQL, Python, and JavaScript
-practice. Five tiers per track, ten gating questions per tier, real query
-execution against an embedded SQLite database (sql.js), Pyodide for Python,
-and a sandboxed Web Worker for JavaScript. Progress persists in
-`localStorage`. Bloomberg-style multi-panel layout with a learning layer in the
-right rail.
+A self-hosted, browser-based training terminal for SQL, Python, JavaScript,
+and Rust practice. Five tiers per track, ten gating questions per tier, real
+query execution against an embedded SQLite database (sql.js), Pyodide for
+Python, and a sandboxed Web Worker for JavaScript — plus a pattern-match
+grader for Rust, the first track graded without in-browser execution.
+Progress persists in `localStorage`. Bloomberg-style multi-panel layout with
+a learning layer in the right rail.
 
-## What's new in v3.10
+## What's new in v4.0
+
+**Rust** joins as the fourth track — and the first graded by pattern-matching
+instead of execution. There's no Rust runtime in the browser; a `RustEngine`
+normalizes your submission and compares it against a canonical structure, with
+an alternatives mechanic that accepts equivalent forms (e.g. `|&w|` vs
+`|w| *w`) and grammar-lite feedback that names the specific mistake ("binding
+needs `mut`", "wrong borrow syntax", "missing `;`") rather than a bare
+"incorrect."
+
+- **50 graded questions across five tiers**, from `let`/`mut` bindings and
+  lowercase booleans up through a dot-product forward-pass capstone. The ramp
+  covers ownership and borrowing, iterators and closures, traits / generics /
+  lifetimes-in-context, and async / unsafe / FFI / smart pointers.
+- **A full learning-content tree** — a whole-language cheatsheet plus per-tier
+  concepts and worked examples, with ASCII diagrams for the ownership model
+  (move invalidation, `&T` vs `&mut T`, the borrow checker's reader-XOR-writer
+  rule).
+- **`start rust`** is wired through the UI alongside the other three tracks:
+  KPI rollups, the left-rail tier ladder, the ticker, and progress
+  persistence all include Rust.
+- The pattern-match grader built for a 10-question slice graded the full
+  50-question bank **without a single change** — validating the approach for
+  the C++/CUDA tracks it's designed to extend to.
+
+See `CHANGELOG.md` for the build-artifact md5 and the per-track bundle audit.
+
+## What was new in v3.10
 
 Consolidation pass between v3.9 and v4.0. No new tracks, no new questions, no
 new features — pure cleanup of technical debt that would have made Rust

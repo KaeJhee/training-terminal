@@ -6,10 +6,75 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
-Next milestone is v4.0 (Rust track). v3.10 cleared the structural prerequisites — symmetric build pipeline across all three tracks, tag syntax that doesn't collide with Rust identifiers, and the Q47 / Intermediate-tier calibration items. Authoring v4.0 against this base is straightforward.
+Next milestone candidate is v4.1 (C++ + CUDA). v4.0 proved the pattern-match paradigm end-to-end on Rust; the reusable techniques it produced (see the v4.0 "Documented" section) are what a non-executing C++/CUDA track would build on — but the roadmap is candidate-level, not locked.
 
-- **v4.0** — Rust track (pattern-match + learning content). Authoring against `<<tag>>` syntax. Build pipeline already produces SQL/Python/JS bundles symmetrically.
-- **v4.1** — C++ track + CUDA specialization (pattern-match + learning content).
+- **v4.1 (planned, candidate)** — C++ track + CUDA specialization is the leading candidate: it would reuse v4.0's pattern-match engine, alternatives-library mechanic, and QA harness. Treated as candidate-level in the v4.0 handoff, not a committed roadmap.
+
+---
+
+## [v4.0] — ⚠️ PENDING ship date (backfill at task 11)
+
+Adds **Rust** as the fourth track — and the first graded by pattern-matching rather than execution. No sandbox, no runtime: a `RustEngine` normalizes the submission and compares it against a canonical structure with an alternatives mechanic, refining failures through grammar-lite tag-driven messages. Complete track: 50 questions across 5 tiers, a 6-file content tree, and `start rust` wired through the UI.
+
+### Build artifact
+
+- **`index.html`** md5: ⚠️ **PENDING — backfill after task-11 rebuild** (this entry is authored before the ship-time `python3 build.py`; a literal "PENDING" shipping here is an obvious error)
+- **size:** ⚠️ **PENDING — backfill after task-11 rebuild**
+- **build pipeline:** Symmetric across all four tracks. `build.py` now iterates `("sql","python","javascript","rust")`; the qid-extraction regex was widened to match Rust's quoted-key `"id":"rs_..."` form alongside the legacy bare-key `id:'...'` form (all 200 qids now extract, 50 per track).
+
+### Per-track bundle audit (vs v3.10)
+
+| Track | v4.0 md5 | v3.10 reference | Expected |
+|---|---|---|---|
+| sql | ⚠️ PENDING | `aeeb91131bf238fb34e6cacd0c949390` | byte-identical (no SQL content changed) |
+| python | ⚠️ PENDING | `7e7270968e5d7ca25f919f03c76aa828` | byte-identical (no Python content changed) |
+| javascript | ⚠️ PENDING | `f28fcdd26a2a6aacf321ba6569fdfff5` | byte-identical (no JS content changed) |
+| rust | ⚠️ PENDING | — | new (cheatsheet + 5 tier files) |
+
+The full `index.html` md5 will differ from v3.10 because the template body gained the `start rust` wiring, the v4.0 version stamps, and the embedded Rust content bundle. The three existing tracks' content bundles are expected byte-identical to v3.10 (their source markdown is untouched) — confirmed by the task-11 per-track audit, same method as v3.10's audit vs v3.9.
+
+### Headline result
+
+**The Stage 2 grader graded the entire 50-question bank without a single modification.** The pattern-match-plus-grammar-lite architecture locked in Stage 1 held from boolean binding (`rs_intro_01`) through a dot-product forward-pass (`rs_mas_10`) across all five tiers — no engine change, no alternatives-mechanic change, no build.py grading change across the 40 questions added in Stage 3. The staged design (Stage 1 paper spec → Stage 2 representative slice + harness → Stage 3 full authoring) was validated: the spec was right.
+
+### Added
+
+- **`RustEngine`** (pattern-match grader, no execution) — grades in order forbidden → required → structure-with-alternatives, then refines structure-mismatch failures with grammar-lite tag-driven messages (mutability, missing `;`, borrow-syntax, missing `for <Type>`). Whitespace normalization is string/char/lifetime-aware. Alternatives substitution is whole-token, longest-match-first, single-pass.
+- **`RUST_ALTERNATIVES_LIBRARY`** — five named equivalence groups (`CLOSURE_DEREF_VARIANTS`, `NUMERIC_LITERAL_SUFFIXES`, `STRING_TYPE_VARIANTS`, `ITER_COLLECT_VARIANTS`, `RESULT_PROPAGATION`).
+- **50 Rust questions** across 5 tiers (10 each): Introductory (let/mut, types, println!, Vec, tuples, if/else, match, fn), Amateur (Vec/String/Option/Result, if let, match-on-Option), Intermediate (ownership/borrowing, iterators, closures incl. closure-deref), Experienced (traits, generics, lifetimes-in-context, Result+`?`), Master (async/.await, smart pointers, unsafe/FFI, and the `rs_mas_10` dot-product capstone).
+- **Rust content tree** in `src/content/rust/` — `cheatsheet.md` (~608 words) plus 5 tier files (~2,800 words total), `<<tag>>` syntax, with ASCII ownership diagrams in the cheatsheet and Intermediate tier file.
+- **`start rust` wired into TerminalApp** — `RustEngine` constructed at boot and routed via the engine-selector ternaries; rust added to the KPI rollups, left rail, ticker, cmdGoto, reset counts, footer engine-status, and the help/usage/placeholder text.
+- **`RUST_QUESTION_TAGS`** closed-set lint in `build.py` (from Stage 2) and the `rust words` build-summary line.
+
+### Fixed
+
+- **Two latent JavaScript bugs**, surfaced by wiring rust parallel to js:
+  - `cmdStart` usage string read `Usage: start <python|sql>` — never updated when JS shipped in v3.9. Now `<python|sql|javascript|rust>`.
+  - `cmdReset` computed `jsDone` but never summed it into the total or the warning message (only PYTHON + SQL counted) — under-reporting JS completions since v3.9. Now sums and lists all four tracks.
+
+### Verified
+
+- **QA harness** (`tests/qa_harness.py`): **168 accept / 0 fail, 151 reject / 0 fail** across all 50 questions. Permanent regression home; reused by v4.1.
+- **Content sweep** (all 6 files): rendered-output stray-marker scan = 0; block-level zero-accept = 0 across all 20 worked examples (no example's code grades as a correct answer to any question in its tier); targeted lint = 0.
+- **build.py --check**: Lint clean with rust in the track loop; 200 qids extracted.
+- **Ship-gate verification (⚠️ PENDING task 11):** the following run at the rebuild and their results backfill here alongside the md5 — full JS↔Python grader parity across all 50 questions, sabotage test on a Stage-3 question, per-track bundle md5 audit, and the browser smoke test confirming `start rust` routes/renders/rolls. Authored as the plan now; results pending.
+
+### Documented
+
+Reusable authoring principles distilled from the sprint (the detailed per-question record lives in `docs/v4.0-authoring-notes.md`):
+
+- **Required-vs-alternatives boundary.** When a token has accepted variants, put the *invariant prefix* in `required` and let `alternatives` handle the parametrization — the grader checks `required` before substituting alternatives, so a parametrized token in `required` makes the alternative dead code (a correct answer fails). The dominant authoring pitfall — appeared eight times across the bank; the mode of resolution improved monotonically from harness-caught (through the fifth, `rs_exp_09`) to self-caught pre-insertion to avoided-by-construction for the capstone. *(worked examples: `rs_int_04` and `rs_exp_09` harness-caught; `rs_mas_10` avoided by construction)*
+- **A library group's equivalence claim is tier-relative — and this is the one error class the harness cannot catch.** Forms equivalent at a "get-the-value" tier can be semantically distinct at a "handle-the-failure" tier. `RESULT_PROPAGATION` treats `?` ≈ `.unwrap()` ≈ `.expect()`, but `?` *propagates* while the others *panic* — opposite behavior. A wrong answer using the mismatched form would pass the harness silently while teaching a falsehood; only author judgment guards this. *(worked example: `rs_exp_10`, which uses no alternatives and adds a teaching-reject)*
+- **Lint verifies structure, not rendered correctness.** Two gaps proved this: `build.py` didn't lint rust content until the track joined the build loop, and a tag malformed into literal text (`<<amber>` with a single `>`) renders raw markup yet passes lint with zero errors (no tag opened, nothing unbalanced). The detector is a rendered-output stray-marker scan, not the lint. *(worked example: `tier-intermediate` EX4, caught before disk)*
+- **Nested-generic discipline: no adjacent `>>` in rendered visible text.** Dual purpose — render-safety (`>>` collides with the `<<tag>>` close) and detector-trustworthiness (a legitimate `>>` makes the stray-marker scan unable to tell good from malformed; the binding reason, since it holds even where rendering is fine). Teach inherently-nested types via *inferred code* (`Rc::new(vec![...])`, not `let x: Rc<Vec<f64>>`). *(worked example: `tier-master`)*
+- **Capstone selection is structure-tolerance-constrained in a pattern-match track.** With no execution, the capstone is graded by structure compare, so it must fit one clean structure string — dot product (`zip().map().sum()`) fit; embedding+cosine-similarity would have strained it. *(worked example: `rs_mas_10`)*
+- **Cross-language-habit catch is a deliberate through-line, Intro→Master.** The grader flags "your previous language's idiom is wrong here" at every tier: lowercase booleans, explicit `mut`, `.len()` not `.length()` (Intro); postfix `.await` not prefix (Master).
+
+### Known issues / v4.1 candidates
+
+- **2-of-5 library-group coverage.** Only `NUMERIC_LITERAL_SUFFIXES` and `CLOSURE_DEREF_VARIANTS` are exercised by v4.0 questions. `RESULT_PROPAGATION` is deliberately unused (mis-scoped — see Documented; v4.1 should rename it `RESULT_VALUE_EXTRACTION` or split panic-forms from `?`). `STRING_TYPE_VARIANTS` and `ITER_COLLECT_VARIANTS` are unused because no question's prompt scope needs them — not forced in, to honor "structure matches the prompt." All three are authored, tested, and available for v4.1.
+- **qid cross-references in Rust content deferred.** The widened qid regex now makes `<<qid:rs_...>>` references valid, but the content ships without them (the JS track has them). A post-v4.0 polish pass, not load-bearing.
+- **Math-operator errors fall to "structure mismatch."** Grammar-lite has no arithmetic-intent rule, so `x + x` vs `x * x` (sum-of-doubles vs sum-of-squares) gets the generic structure diff. A documented boundary of pattern-match grading, not a fixable gap — arithmetic intent would need partial execution.
 
 ---
 
