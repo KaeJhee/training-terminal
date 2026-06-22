@@ -1,6 +1,6 @@
 # Ghost Training Terminal
 
-![version](https://img.shields.io/badge/version-v3.10-e8a020?style=flat-square)
+![version](https://img.shields.io/badge/version-v4.0-e8a020?style=flat-square)
 ![tracks](https://img.shields.io/badge/tracks-SQL%20%7C%20Python%20%7C%20JavaScript-3cb8c0?style=flat-square)
 ![tier system](https://img.shields.io/badge/tiers-5-3ab86e?style=flat-square)
 
