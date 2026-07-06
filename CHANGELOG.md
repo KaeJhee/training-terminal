@@ -8,8 +8,35 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 Next milestone candidate is v4.1 (C++ + CUDA). v4.0 proved the pattern-match paradigm end-to-end on Rust; the reusable techniques it produced (see the v4.0 "Documented" section) are what a non-executing C++/CUDA track would build on — but the roadmap is candidate-level, not locked.
 
-- **v4.0.2 (next patch)** — width-aware line-wrap fix for the terminal line editor. Addresses the HIGH-severity pre-existing wrap bug surfaced by the v4.0.1 audit (see v4.0.1 "Known issues"): the cursor model counts logical lines, not physical rows, so long lines that wrap corrupt the display. Needs a `term.cols`-aware physical-row cursor model plus its own verification harness.
+- **v4.0.3 (next patch)** — two line-editor follow-ups: (1) full resize-reflow re-anchoring (v4.0.2 mitigated the resize erase-above but can leave a cosmetic duplicate of the current line); (2) history in-progress-line preservation (stash/restore the unsubmitted line across Up/Down, the way bash/zsh do — currently Up discards what you were typing and Down returns to an empty line).
 - **v4.1 (planned, candidate)** — C++ track + CUDA specialization is the leading candidate: it would reuse v4.0's pattern-match engine, alternatives-library mechanic, and QA harness. Treated as candidate-level in the v4.0 handoff, not a committed roadmap.
+
+---
+
+## [v4.0.2] — 2026-06-22
+
+Patch release. Fixes the pre-existing line-**wrap** cursor bug (flagged in v4.0.1's known issues) with a width-aware physical-row cursor model, plus two edge fixes from an adversarial audit and the `println!` cheatsheet gap. Browser-confirmed (wrap + resize spot-checks).
+
+### Build artifact
+
+- **`index.html`** md5: `220403c888b86e76c42ccff716481724`
+- **size:** 515,372 (build.py char count, consistent with prior entries; 516,765 bytes via `wc -c` — delta is multi-byte UTF-8)
+- **per-track bundles:** sql / python / javascript byte-identical to v4.0 (`aeeb9113…` / `7e727096…` / `f28fcdd2…`); rust new (`54f7ec93…`) — the cheatsheet gained a MACROS section.
+
+### Fixed
+
+- **Line-wrap corruption in the terminal line editor (HIGH — the v4.0.1 known issue).** A logical line longer than the terminal width wraps onto multiple *physical* rows, but the cursor model counted logical lines only (no `term.cols` awareness), so long lines garbled/duplicated on left-arrow and desynced the cursor. Fix: a wrap-aware physical-row model — new helpers `_cols` / `_prefixLen` / `_lineRows` / `_physRow` / `_physCol` / `_physTotalRows` (deferred-wrap aware: a line of exactly `cols` chars occupies one row); `redrawInput`, `_moveCursorToPosition`, and the insert/backspace/Enter fast paths all count physical rows. Verified with a deferred-wrap terminal-grid emulator across 12 scenarios (non-wrap regression + wrap/edge incl. the exact-`cols` boundary and backspace-across-wrap), an independent adversarial audit that built its own emulator and confirmed the core model, and a real-browser spot-check.
+- **Backspace off-by-one at the exact-fill wrap boundary (audit finding).** The fast `\b \b` path is ambiguous when a line fills a physical row exactly (`\b` from a pending-wrap cell varies across xterm versions). Fix: strict `<` guard — fall through to a full redraw at that boundary (always correct).
+- **Resize mid-edit could erase output above the input (audit finding).** After a width change xterm reflows wrapped lines, leaving the tracked cursor row stale; the next redraw could overshoot above the prompt and erase the question. Mitigation: reset the redraw anchor on resize so the next redraw can't move up past the prompt. Worst case now is a cosmetic duplicate of the current line, re-synced on the next keystroke (full reflow re-anchoring is v4.0.3).
+
+### Added
+
+- **`println!` in the Rust cheatsheet.** A MACROS section (`println!` / `format!` / `vec!`, the `!`-marks-a-macro concept) — previously `println!` was taught in the tier content and graded (`rs_intro_04`) but absent from the whole-language reference.
+
+### Known issues / follow-up (v4.0.3)
+
+- **Full resize-reflow re-anchoring.** The v4.0.2 mitigation prevents the erase-above data-loss but can leave a cosmetic duplicate of the current line after a resize mid-edit; a complete fix re-anchors/redraws to the reflowed screen.
+- **History in-progress-line preservation.** Up/Down navigate command history, but the in-progress (unsubmitted) line isn't stashed/restored the way bash/zsh do — pressing Up discards what you were typing, and Down returns to an empty line rather than your working text. Pre-existing; a small enhancement.
 
 ---
 
