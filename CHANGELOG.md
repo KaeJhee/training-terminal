@@ -8,8 +8,28 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 Next milestone candidate is v4.1 (C++ + CUDA). v4.0 proved the pattern-match paradigm end-to-end on Rust; the reusable techniques it produced (see the v4.0 "Documented" section) are what a non-executing C++/CUDA track would build on — but the roadmap is candidate-level, not locked.
 
-- **v4.0.3 (next patch)** — two line-editor follow-ups: (1) full resize-reflow re-anchoring (v4.0.2 mitigated the resize erase-above but can leave a cosmetic duplicate of the current line); (2) history in-progress-line preservation (stash/restore the unsubmitted line across Up/Down, the way bash/zsh do — currently Up discards what you were typing and Down returns to an empty line).
+- **v4.0.4 (candidate, low priority)** — full resize-reflow re-anchoring for the terminal line editor. v4.0.2 removed the resize erase-above (data-loss) and v4.0.3 added history in-progress-line preservation, leaving only a *cosmetic* duplicate of the current line after a resize mid-edit; a complete fix re-anchors/redraws to the reflowed screen. Lower priority now that the data-loss is gone.
 - **v4.1 (planned, candidate)** — C++ track + CUDA specialization is the leading candidate: it would reuse v4.0's pattern-match engine, alternatives-library mechanic, and QA harness. Treated as candidate-level in the v4.0 handoff, not a committed roadmap.
+
+---
+
+## [v4.0.3] — 2026-06-22
+
+Patch release. Adds command-history in-progress-line preservation to the terminal line editor (bash/zsh behavior). Line-editing JS only — no content, question, or grading changes, so all four per-track content bundles are byte-identical to v4.0.2.
+
+### Build artifact
+
+- **`index.html`** md5: `0af8495326bbadbbe359562e1405d8c5`
+- **size:** 515,950 (build.py char count, consistent with prior entries; 517,343 bytes via `wc -c`)
+- **per-track bundles:** all four byte-identical to v4.0.2 (`aeeb9113…` / `7e727096…` / `f28fcdd2…` / `54f7ec93…`).
+
+### Fixed
+
+- **History navigation discarded your in-progress line.** Up/Down navigate command history, but the unsubmitted line you were typing wasn't preserved — pressing Up replaced (and lost) it, and Down returned to an empty prompt rather than your working text. Fix: stash the in-progress line when history nav leaves the working line (first Up), restore it when Down returns to the bottom (matching bash/zsh), and clear the stash on a new submission. Verified with a 10-case logic test (stash-on-leave, restore-on-return, no-op at both bounds, submit clears).
+
+### Known issues / follow-up
+
+- **Full resize-reflow re-anchoring (v4.0.4 candidate, low priority).** v4.0.2 removed the resize erase-above (data-loss); a resize mid-edit can still leave a *cosmetic* duplicate of the current line. A complete fix re-anchors/redraws to the reflowed screen.
 
 ---
 
