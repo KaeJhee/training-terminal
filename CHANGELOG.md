@@ -8,7 +8,29 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 Next milestone candidate is v4.1 (C++ + CUDA). v4.0 proved the pattern-match paradigm end-to-end on Rust; the reusable techniques it produced (see the v4.0 "Documented" section) are what a non-executing C++/CUDA track would build on — but the roadmap is candidate-level, not locked.
 
+- **v4.0.2 (next patch)** — width-aware line-wrap fix for the terminal line editor. Addresses the HIGH-severity pre-existing wrap bug surfaced by the v4.0.1 audit (see v4.0.1 "Known issues"): the cursor model counts logical lines, not physical rows, so long lines that wrap corrupt the display. Needs a `term.cols`-aware physical-row cursor model plus its own verification harness.
 - **v4.1 (planned, candidate)** — C++ track + CUDA specialization is the leading candidate: it would reuse v4.0's pattern-match engine, alternatives-library mechanic, and QA harness. Treated as candidate-level in the v4.0 handoff, not a committed roadmap.
+
+---
+
+## [v4.0.1] — 2026-06-22
+
+Patch release. Fixes a critical multi-line cursor bug in the terminal's line editor (reported against v4.0), plus a minor caret jump on the Hint button. No content, question, or grading changes — the fixes are entirely in `TerminalApp`'s line-editing JavaScript (template body), so all four per-track content bundles are byte-identical to v4.0.
+
+### Build artifact
+
+- **`index.html`** md5: `9277a3dd57e6981a3eb23bef9a93ef6a`
+- **size:** 510,799 (build.py char count, consistent with prior entries; 512,176 bytes via `wc -c` — delta is multi-byte UTF-8)
+- **per-track bundles:** sql / python / javascript / rust all byte-identical to v4.0 (`aeeb9113…` / `7e727096…` / `f28fcdd2…` / `e95604cf…`) — the fix touches no content.
+
+### Fixed
+
+- **Left-arrow in multi-line input deleted lines of output above the input (critical).** `redrawInput()` moved the cursor up `renderedLines - 1` rows to return to the prompt row, assuming the physical cursor was on the *last* rendered row. But `_moveCursorToPosition()` parks the cursor on an *upper* row as soon as a left-arrow (or Home/kill) crosses a line boundary; the next redraw's blind move-up then overshot *above* the prompt, and its `\x1b[J` (erase-to-end-of-screen) destroyed the printed question/instructions. Fix: track the cursor's actual physical row in a new `renderCursorRow` field and move up by that, updating it wherever the cursor is repositioned (constructor, `writePrompt`, end of `redrawInput`, the `_onEnter` fast path). Verified with a deterministic terminal-grid model across 6 keystroke scenarios (instructions survive, rendered input matches the buffer, cursor lands correctly) plus an independent adversarial audit that reproduced the original trace and confirmed the fix resolves it.
+- **Hint button snapped the caret to the start of the buffer (minor).** `showHint()` called `writePrompt()` (which resets `cursorPos` to 0) then redrew, so the caret jumped to column 0 of a multi-line buffer. Fix: restore `cursorPos` to the end of the preserved input before redraw (mirrors the incorrect-answer path).
+
+### Known issues / follow-up
+
+- **Line-wrap corruption (pre-existing since v3.7, HIGH — scoped as the next patch).** Long logical lines that wrap onto multiple *physical* terminal rows are not accounted for: the cursor model counts one logical line (`\n`) as one physical row and has no `term.cols` awareness anywhere in the input path. A left-arrow on a wrapped line garbles or duplicates it and desyncs the cursor. Realistic on narrow/mobile terminals with long queries. Not a regression (predates the Rust track). Surfaced by the v4.0.1 audit; the fix needs a width-aware physical-row model and its own verification harness — deferred to v4.0.2.
 
 ---
 
