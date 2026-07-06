@@ -50,6 +50,15 @@
       <<amber>>if<</amber>> cost > <<blue>>1000<</blue>> { <<green>>"high"<</green>> } <<amber>>else<</amber>> { <<green>>"low"<</green>> }
       <<amber>>match<</amber>> n { <<blue>>1<</blue>> => <<green>>"one"<</green>>, _ => <<green>>"many"<</green>> }
 
+# MACROS
+
+  A trailing <<amber>>!<</amber>> marks a <<bold>>macro<</bold>>, not a function. <<purple>>println!<</purple>> prints a
+  line — <<amber>>{}<</amber>> is a placeholder filled by the args that follow; <<purple>>format!<</purple>>
+  builds a <<teal>>String<</teal>> the same way; <<purple>>vec!<</purple>> constructs a <<teal>>Vec<</teal>>.
+
+      <<purple>>println!<</purple>>(<<green>>"open: {}"<</green>>, count);
+      <<amber>>let<</amber>> msg = <<purple>>format!<</purple>>(<<green>>"{} bays"<</green>>, n);
+
 # FUNCTIONS AND CLOSURES
 
   <<amber>>fn<</amber>> declares a function; the final expression (no <<amber>>;<</amber>>) is the
