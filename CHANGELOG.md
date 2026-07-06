@@ -8,8 +8,23 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 Next milestone candidate is v4.1 (C++ + CUDA). v4.0 proved the pattern-match paradigm end-to-end on Rust; the reusable techniques it produced (see the v4.0 "Documented" section) are what a non-executing C++/CUDA track would build on — but the roadmap is candidate-level, not locked.
 
-- **v4.0.4 (candidate, low priority)** — full resize-reflow re-anchoring for the terminal line editor. v4.0.2 removed the resize erase-above (data-loss) and v4.0.3 added history in-progress-line preservation, leaving only a *cosmetic* duplicate of the current line after a resize mid-edit; a complete fix re-anchors/redraws to the reflowed screen. Lower priority now that the data-loss is gone.
 - **v4.1 (planned, candidate)** — C++ track + CUDA specialization is the leading candidate: it would reuse v4.0's pattern-match engine, alternatives-library mechanic, and QA harness. Treated as candidate-level in the v4.0 handoff, not a committed roadmap.
+
+---
+
+## [v4.0.4] — 2026-06-22
+
+Patch release. Completes the terminal line editor's resize handling: a mid-edit window resize now re-anchors cleanly with **no leftover duplicate** — the cosmetic remainder v4.0.2 left after it removed the resize data-loss. Line-editing / boot JS only; all four per-track content bundles are byte-identical to v4.0.3.
+
+### Build artifact
+
+- **`index.html`** md5: `3c7b3b2b155fe6e1ed08979c771e6354`
+- **size:** 516,133 (build.py char count, consistent with prior entries; 517,528 bytes via `wc -c`)
+- **per-track bundles:** all four byte-identical to v4.0.3 (`aeeb9113…` / `7e727096…` / `f28fcdd2…` / `54f7ec93…`).
+
+### Fixed
+
+- **Resize mid-edit left a cosmetic duplicate of the current line (the v4.0.2 follow-up, now complete).** On a width change, xterm reflows the wrapped input in place (the screen stays correct), but the app's redraw anchor was reset to `0`, so the next redraw anchored at the cursor's row and left the rows above it as a duplicate. Fix: on resize, re-sync the anchor to the cursor's *true* physical row at the new width (`_physRow(cursorPos)`, which reads `term.cols` live post-`fit()`) instead of `0` — the next redraw then erases from the real block top. Also removed the now-stale v4.0.2 comment that described the anchor-reset mitigation. Browser-confirmed: resize mid-edit (including across a wrap boundary) leaves no duplicate and never erases the question text above. Falls back safely to the v4.0.2 anchor-reset if the model can't compute a row. This closes the resize follow-up: v4.0.2 removed the resize *data-loss*, v4.0.4 removes the residual *cosmetic* duplicate.
 
 ---
 
