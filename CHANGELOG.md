@@ -18,8 +18,8 @@ Review fixes. The terminal shell, SQL, and JavaScript no longer depend on a CDN.
 
 ### Build artifact
 
-- **`index.html`** md5: `06a2dbbfe131fdcc0ac9f0970c32dcdf`
-- **size:** 323,554 (build.py character count) / 324,923 bytes (`wc -c`)
+- **`index.html`** md5: `9bce02d9792dad5f28c038936f795e41`
+- **size:** 324,183 (build.py character count) / 325,552 bytes (`wc -c`)
 - **`content-bundle.js`** md5: `2306bbe6dd04074f1445d349dc57495f` (203,973 bytes). Lessons are no longer inlined into `index.html`.
 - **per-track words:** sql ~3160, python ~3465, javascript ~4605, rust ~3466
 
@@ -28,7 +28,7 @@ Review fixes. The terminal shell, SQL, and JavaScript no longer depend on a CDN.
 - Python `None` is compared as `null`, so `py_exp_04` accepts its reference answer and the Master tier unlocks.
 - Python runs in `pyodide-worker.js`. Ctrl+C and a 5s wall terminate the worker. The tab does not freeze.
 - A progress file without `completed` (object) and `activity` (array) is rejected before save. A bad `localStorage` value resets to an empty profile.
-- The header starts at LOADING and becomes ONLINE only when the shell and SQL are up. A blocked jsDelivr shows DEGRADED and leaves the terminal usable. Python stays idle until that track opens.
+- The header starts at LOADING and becomes ONLINE only when the shell and SQL are up. A blocked jsDelivr shows DEGRADED and leaves the terminal usable. Python stays idle until that track opens. Hovering or focusing Start Python starts the download without flipping the header to LOADING.
 - GARAGE and PORTFOLIO link to the live sibling sites. There is no Budget product, so that pill is gone.
 - JavaScript `fetch` is removed on the worker prototypes as well as `globalThis`. The page sets a Content-Security-Policy. `'unsafe-eval'` stays because the grader runs learner code.
 - The Rust grader strips comments and accepts an extra `: Type` on the user's side. The existing 319 cases still pass. A missing semicolon is reported only when the semicolon is actually missing.

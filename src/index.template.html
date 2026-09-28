@@ -3518,10 +3518,21 @@
       });
     }
 
+    /* Start the download without marking Python as requested, so hovering
+       Start Python does not flip the header to LOADING. */
+    warm() {
+      if (this.requested || this.ready || this.failed) return this.loading || Promise.resolve();
+      return this._load();
+    }
+
     init() {
+      this.requested = true;
+      return this._load();
+    }
+
+    _load() {
       if (this.ready) return Promise.resolve();
       if (this.loading) return this.loading;
-      this.requested = true;
       this.failed = false;
       this.failReason = '';
       this.loading = (async () => {
@@ -6397,6 +6408,13 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
       app.cmdStart(track);
       term.focus();
     });
+    const warmPython = (e) => {
+      const btn = e.target && e.target.closest && e.target.closest('[data-track="python"]');
+      if (!btn) return;
+      app.py.warm();
+    };
+    document.addEventListener('pointerenter', warmPython, true);
+    document.addEventListener('focusin', warmPython, true);
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(() => {});
