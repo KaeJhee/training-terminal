@@ -3,11 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Ghost Training Terminal is an educational browser coding trainer for SQL, Python, JavaScript, and Rust. 200 questions, graded in the page. Not investment advice.">
+<meta property="og:title" content="Ghost Training Terminal">
+<meta property="og:description" content="Practice SQL, Python, JavaScript, and Rust in a Bloomberg-style terminal. 4 tracks, 200 questions, graded in the browser.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://kaejhee.github.io/training-terminal/">
+<meta property="og:image" content="https://kaejhee.github.io/training-terminal/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Ghost Training Terminal">
+<meta name="twitter:description" content="Practice SQL, Python, JavaScript, and Rust in the browser. 200 graded questions.">
+<meta name="twitter:image" content="https://kaejhee.github.io/training-terminal/og.png">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://cdn.jsdelivr.net; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <title>GHOST // TRAINING TERMINAL</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" type="image/png" href="favicon-32x32.png" sizes="32x32">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
+<link rel="stylesheet" href="vendor/fonts/fonts.css">
+<link rel="stylesheet" href="vendor/xterm/xterm.css">
 <style>
   :root {
     --bg:         #000000;
@@ -23,8 +36,8 @@
     --purple:     #a06ef0;
     --red:        #ef4444;
     --text:       #e8a020;
-    --text-dim:   #6a6a6a;
-    --text-label: #4a4a4a;
+    --text-dim:   #b5b5b5;
+    --text-label: #8f8f8f;
     --mono: 'DM Mono', Menlo, Monaco, 'Courier New', monospace;
     --sans: 'DM Sans', system-ui, -apple-system, sans-serif;
   }
@@ -80,6 +93,7 @@
   .indicators { display: flex; gap: 22px; align-items: center; }
   .stat { display: flex; align-items: center; gap: 6px; }
   .stat-label { color: var(--text-label); }
+  .stat-label.short { display: none; }
   .stat-value { color: var(--amber); font-variant-numeric: tabular-nums; }
   .stat-value.green { color: var(--green); }
   .stat-value.amber { color: var(--amber); }
@@ -129,6 +143,11 @@
   @keyframes ticker-scroll {
     0%   { transform: translate3d(0, 0, 0); }
     100% { transform: translate3d(-50%, 0, 0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ticker-track { animation: none; }
+    .dot { animation: none; }
+    .progress-bar-fill { transition: none; }
   }
 
   /* ─── MAIN GRID ──────────────────────────────────────── */
@@ -279,11 +298,41 @@
     font-size: 10px;
   }
   .q-empty {
-    color: var(--text-label);
-    font-size: 11px;
+    color: var(--text-dim);
+    font-size: 12px;
     line-height: 1.5;
-    font-style: italic;
   }
+  .start-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .start-btn {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    padding: 8px 12px;
+    background: #141414;
+    color: #f2f2f2;
+    border: 1px solid var(--amber);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .start-btn:hover { background: rgba(232, 160, 32, 0.16); color: var(--amber); }
+  .start-btn:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+  .boot-error {
+    margin: 16px; padding: 14px 16px;
+    border: 1px solid var(--red); color: #f4f4f4;
+    background: #140606; font-family: var(--sans); font-size: 14px; line-height: 1.45;
+  }
+  .engine-banner {
+    display: none; margin: 0 0 8px; padding: 8px 10px;
+    border: 1px solid var(--amber); color: #f2f2f2;
+    background: #1a1204; font-family: var(--sans); font-size: 12px; line-height: 1.4;
+  }
+  .engine-banner.show { display: block; }
+  h1.brand { font-size: 11px; font-weight: 500; letter-spacing: 1.2px; margin: 0; }
 
   .schema-row {
     font-family: var(--mono); font-size: 10px;
@@ -515,7 +564,8 @@
     .footer-bar .key { display: none; }
   }
   @media (max-width: 720px) {
-    .stat-label { display: none; }
+    .stat-label:not(.short) { display: none; }
+    .stat-label.short { display: inline; }
     .indicators { gap: 14px; }
     .action-btn .kbd { display: none; }
     .action-status { display: none; }
@@ -539,18 +589,18 @@
 <body>
 
   <!-- HEADER -->
-  <div class="status-bar">
+  <header class="status-bar">
     <div class="header-left">
-      <div class="brand">GHOST<span class="brand-sep">//</span>TRAINING TERMINAL</div>
-      <nav class="nav-pills" id="nav-pills"></nav>
+      <h1 class="brand">GHOST<span class="brand-sep">//</span>TRAINING TERMINAL</h1>
+      <nav class="nav-pills" id="nav-pills" aria-label="Ghost Strategies sites"></nav>
     </div>
     <div class="indicators">
-      <div class="stat"><span class="stat-label">TRACK</span><span class="stat-value" id="hdr-track">—</span></div>
-      <div class="stat"><span class="stat-label">RANK</span><span class="stat-value" id="hdr-rank">—</span></div>
-      <div class="stat"><span class="stat-label">PROGRESS</span><span class="stat-value" id="hdr-progress">—</span></div>
-      <div class="stat"><span class="dot" id="hdr-dot"></span><span class="stat-value green" id="hdr-status">ONLINE</span></div>
+      <div class="stat"><span class="stat-label">TRACK</span><span class="stat-label short">TRK</span><span class="stat-value" id="hdr-track">—</span></div>
+      <div class="stat"><span class="stat-label">RANK</span><span class="stat-label short">RNK</span><span class="stat-value" id="hdr-rank">—</span></div>
+      <div class="stat"><span class="stat-label">PROGRESS</span><span class="stat-label short">PRG</span><span class="stat-value" id="hdr-progress">—</span></div>
+      <div class="stat"><span class="dot loading" id="hdr-dot"></span><span class="stat-value amber" id="hdr-status">LOADING</span></div>
     </div>
-  </div>
+  </header>
 
   <!-- TICKER -->
   <div class="ticker">
@@ -561,7 +611,7 @@
   <div class="main-grid">
 
     <!-- LEFT RAIL -->
-    <aside class="side-rail left" id="left-rail">
+    <aside class="side-rail left" id="left-rail" aria-label="Progress">
       <div class="rail-label">Watchlist</div>
       <div id="tracks-container"></div>
 
@@ -570,28 +620,36 @@
       <div class="kpi-row"><span class="kpi-label">Attempts</span><span class="kpi-value" id="kpi-attempts">0</span></div>
       <div class="kpi-row"><span class="kpi-label">Accuracy</span><span class="kpi-value" id="kpi-accuracy">—</span></div>
       <div class="kpi-row"><span class="kpi-label">Streak</span><span class="kpi-value green" id="kpi-streak">0</span></div>
-      <div class="kpi-row"><span class="kpi-label">Session</span><span class="kpi-value" id="kpi-session">00:00</span></div>
+      <div class="kpi-row"><span class="kpi-label">This session</span><span class="kpi-value" id="kpi-session">00:00</span></div>
     </aside>
 
     <!-- TERMINAL -->
     <main class="terminal-container">
+      <div id="boot-error" class="boot-error" hidden role="alert"></div>
       <div id="terminal"></div>
     </main>
 
     <!-- RIGHT RAIL -->
-    <aside class="side-rail right" id="right-rail">
-      <div class="rail-tabs" role="tablist">
+    <aside class="side-rail right" id="right-rail" aria-label="Question">
+      <div id="engine-banner" class="engine-banner" role="status"></div>
+      <div class="rail-tabs" role="tablist" aria-label="Question or cheatsheet">
         <button type="button" class="rail-tab active" id="tab-question"
-                role="tab" aria-selected="true">QUESTION</button>
+                role="tab" aria-selected="true" aria-controls="active-question">QUESTION</button>
         <button type="button" class="rail-tab" id="tab-cheatsheet"
-                role="tab" aria-selected="false">CHEATSHEET</button>
+                role="tab" aria-selected="false" aria-controls="cheatsheet-panel">CHEATSHEET</button>
       </div>
-      <div id="active-question">
+      <div id="active-question" role="tabpanel" aria-labelledby="tab-question">
         <div class="q-card">
-          <div class="q-empty">No track engaged. Type <code>start python</code>, <code>start sql</code>, <code>start javascript</code>, or <code>start rust</code> to begin.</div>
+          <div class="q-empty">Pick a track to start.</div>
+          <div class="start-row">
+            <button type="button" class="start-btn" data-track="sql">Start SQL</button>
+            <button type="button" class="start-btn" data-track="python">Start Python</button>
+            <button type="button" class="start-btn" data-track="javascript">Start JavaScript</button>
+            <button type="button" class="start-btn" data-track="rust">Start Rust</button>
+          </div>
         </div>
       </div>
-      <div id="cheatsheet-panel">
+      <div id="cheatsheet-panel" role="tabpanel" aria-labelledby="tab-cheatsheet">
         <div class="cs-empty">Start a track to load its cheatsheet.</div>
       </div>
 
@@ -617,6 +675,13 @@
 
   <!-- ACTION BAR (Run / Submit / Hint buttons) -->
   <div class="action-bar" id="action-bar">
+    <div id="start-bar" class="start-row">
+      <button type="button" class="start-btn" data-track="sql">Start SQL</button>
+      <button type="button" class="start-btn" data-track="python">Start Python</button>
+      <button type="button" class="start-btn" data-track="javascript">Start JavaScript</button>
+      <button type="button" class="start-btn" data-track="rust">Start Rust</button>
+    </div>
+    <div id="track-tools" hidden>
     <button type="button" class="action-btn run" id="btn-run" disabled
             onmousedown="event.preventDefault()">
       ▶ RUN<span class="kbd">Ctrl+Enter</span>
@@ -633,35 +698,38 @@
             onmousedown="event.preventDefault()">
       📖 REF
     </button>
-    <span class="action-status" id="action-status">Start a track to enable Run / Submit.</span>
+    <span class="action-status" id="action-status">Pick a track to begin.</span>
+    </div>
   </div>
 
   <!-- FOOTER -->
   <div class="footer-bar">
     <span>GHOST STRATEGIES LLC</span>
+    <span class="key">Educational coding tool</span>
     <span class="key" id="footer-engines">engines: booting</span>
     <span class="key"><b>TAB</b> indent/complete · <b>↑↓</b> history · <b>^C</b> abort</span>
     <span id="footer-clock">— —</span>
-    <span>v4.0.4</span>
+    <span>v4.0.5</span>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+  <script src="vendor/xterm/xterm.js"></script>
+  <script src="vendor/xterm/addon-fit.js"></script>
+  <div id="sr-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
   <script>
   /* ============================================================
-     CONTENT BUNDLE (v4.0.4)
-     Generated by build.py from src/content/. Do not edit by hand.
+     CONTENT BUNDLE (v4.0.5)
+     build.py writes content-bundle.js. This token must stay so the
+     build can find the template: {{CONTENT_BUNDLE_JSON}}
      ============================================================ */
-  const CONTENT_BUNDLE = {{CONTENT_BUNDLE_JSON}};
-  window.CONTENT_BUNDLE = CONTENT_BUNDLE;
+  function contentBundle() {
+    return window.CONTENT_BUNDLE || null;
+  }
 
   /* ============================================================
      CONSTANTS
      ============================================================ */
-  const STATE_VERSION = 3;
+  const STATE_VERSION = 4;
   const GATE_SIZE     = 10;
   const TIER_ORDER    = ['introductory', 'amateur', 'intermediate', 'experienced', 'master'];
   const TIER_LABELS   = {
@@ -685,11 +753,15 @@
 
   const COMMANDS_IDLE = ['help','status','start','schema','clear','reset','export','import','exit'];
 
-  const PYODIDE_VERSION   = '0.26.4';
+  const PYODIDE_VERSION   = '0.29.5';
   const PYODIDE_INDEX_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
+  const PYODIDE_JS_URL    = PYODIDE_INDEX_URL + 'pyodide.js';
+  // SRI for pyodide.js only. The wasm is fetched by Pyodide itself; CSP limits where it can connect.
+  const PYODIDE_JS_SRI    = 'sha384-VR47TfKeAmT7vMej7bwOVg0tHTQLLGMSIpsXtFMCZG5OpKZSIXoSLtGY//qHcxc6';
   const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const PYODIDE_TIMEOUT_MS = IS_IOS ? 90_000 : 60_000;
+  const PY_EVAL_TIMEOUT_MS = 5000;
 
   const MAX_ACTIVITY = 10;
 
@@ -722,14 +794,13 @@
 
   /* ============================================================
      CROSS-TERMINAL NAV
-     Replace these `#` placeholders with your actual deployed URLs
-     for the Garage / Portfolio / Budget terminals.
+     Garage and Portfolio are live sibling sites. There is no Budget
+     product, so that pill is not shown.
      ============================================================ */
   const PRODUCT_NAV = [
-    { key:'garage',    label:'GARAGE',    url:'#', active:false },
-    { key:'portfolio', label:'PORTFOLIO', url:'#', active:false },
-    { key:'budget',    label:'BUDGET',    url:'#', active:false },
-    { key:'training',  label:'TRAINING',  url:'#', active:true  },
+    { key:'garage',    label:'GARAGE',    url:'https://garage.ghoststrategies.io', active:false },
+    { key:'portfolio', label:'PORTFOLIO', url:'https://kaejhee.github.io/portfolio/', active:false },
+    { key:'training',  label:'TRAINING',  url:'https://kaejhee.github.io/training-terminal/', active:true  },
   ];
 
   /* ============================================================
@@ -3116,6 +3187,23 @@
   function esc(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[src="' + src + '"]');
+      if (existing && existing.dataset.loaded === '1') { resolve(); return; }
+      const s = existing || document.createElement('script');
+      s.src = src;
+      s.onload = () => { s.dataset.loaded = '1'; resolve(); };
+      s.onerror = () => reject(new Error('Could not load ' + src));
+      if (!existing) document.head.appendChild(s);
+    });
+  }
+  function announce(text) {
+    const el = document.getElementById('sr-live');
+    if (!el) return;
+    el.textContent = '';
+    el.textContent = String(text || '');
+  }
 
   /* ============================================================
      GameState — persistence + activity log + session stats
@@ -3126,17 +3214,48 @@
       this.state = this._defaultState();
       this.load();
       this.sessionStart = Date.now();
-      this.sessionAttempts = 0;
-      this.sessionCorrect = 0;
-      this.streak = 0;
+      const stats = this.state.stats || {};
+      this.sessionAttempts = Number(stats.attempts) || 0;
+      this.sessionCorrect = Number(stats.correct) || 0;
+      this.streak = Number(stats.streak) || 0;
     }
 
     _defaultState() {
       return {
         version: STATE_VERSION,
         activeTrack: null,
-        completed: { python: {}, sql: {} },
+        completed: { python: {}, sql: {}, javascript: {}, rust: {} },
         activity: [],
+        stats: { attempts: 0, correct: 0, streak: 0 },
+      };
+    }
+
+    /* completed is an object keyed by track; activity is an array.
+       Anything else is rejected so a bad import cannot brick the next load. */
+    _normalize(parsed) {
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+      const src = parsed.completed;
+      if (!src || typeof src !== 'object' || Array.isArray(src)) return null;
+      if (!Array.isArray(parsed.activity)) return null;
+      const completed = {};
+      ['python', 'sql', 'javascript', 'rust'].forEach(t => {
+        const v = src[t];
+        completed[t] = (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+      });
+      const stats = (parsed.stats && typeof parsed.stats === 'object' && !Array.isArray(parsed.stats))
+        ? parsed.stats : {};
+      const active = (typeof parsed.activeTrack === 'string' && QUESTIONS[parsed.activeTrack])
+        ? parsed.activeTrack : null;
+      return {
+        version: STATE_VERSION,
+        activeTrack: active,
+        completed,
+        activity: parsed.activity.filter(a => a && typeof a === 'object').slice(0, MAX_ACTIVITY),
+        stats: {
+          attempts: Number(stats.attempts) || 0,
+          correct: Number(stats.correct) || 0,
+          streak: Number(stats.streak) || 0,
+        },
       };
     }
 
@@ -3144,25 +3263,26 @@
       try {
         const raw = localStorage.getItem(this.storageKey);
         if (!raw) return;
-        this.state = this._migrate(JSON.parse(raw));
+        const next = this._migrate(JSON.parse(raw));
+        if (!next) {
+          console.warn('GameState stored value failed validation; resetting.');
+          this.state = this._defaultState();
+          this.save();
+          return;
+        }
+        this.state = next;
       } catch (e) {
         console.warn('GameState load failed:', e);
         this.state = this._defaultState();
+        try { this.save(); } catch (_) {}
       }
     }
 
     _migrate(parsed) {
-      if (!parsed || typeof parsed !== 'object') return this._defaultState();
-      if (parsed.version === STATE_VERSION) return parsed;
-      return {
-        version: STATE_VERSION,
-        activeTrack: parsed.activeTrack || null,
-        completed: {
-          python: (parsed.completed && parsed.completed.python) || {},
-          sql:    (parsed.completed && parsed.completed.sql)    || {},
-        },
-        activity: parsed.activity || [],
-      };
+      // Always rebuild a known shape. A version match used to return the
+      // object untouched, which let `{version:3}` through with no completed map.
+      // Older saves only copied python and sql; javascript and rust are kept.
+      return this._normalize(parsed);
     }
 
     save() {
@@ -3185,7 +3305,7 @@
 
     countCompleteInTier(track, tier) {
       const pool = (QUESTIONS[track] && QUESTIONS[track][tier]) || [];
-      const done = this.state.completed[track] || {};
+      const done = (this.state.completed && this.state.completed[track]) || {};
       return pool.filter(q => done[q.id]).length;
     }
 
@@ -3235,6 +3355,11 @@
       this.sessionAttempts += 1;
       if (ok) { this.sessionCorrect += 1; this.streak += 1; }
       else    { this.streak = 0; }
+      if (!this.state.stats) this.state.stats = { attempts: 0, correct: 0, streak: 0 };
+      this.state.stats.attempts = this.sessionAttempts;
+      this.state.stats.correct = this.sessionCorrect;
+      this.state.stats.streak = this.streak;
+      this.save();
     }
     accuracy() {
       if (this.sessionAttempts === 0) return null;
@@ -3247,140 +3372,245 @@
       this.sessionAttempts = 0; this.sessionCorrect = 0; this.streak = 0;
     }
     exportJson()     { return JSON.stringify(this.state); }
-    importJson(json) { this.state = this._migrate(JSON.parse(json)); this.save(); }
+    importJson(json) {
+      let parsed;
+      try { parsed = JSON.parse(json); }
+      catch (e) { throw new Error('progress JSON could not be parsed'); }
+      const next = this._migrate(parsed);
+      if (!next) {
+        throw new Error('progress JSON needs completed (object keyed by track) and activity (array)');
+      }
+      this.state = next;
+      this.sessionAttempts = next.stats.attempts;
+      this.sessionCorrect = next.stats.correct;
+      this.streak = next.stats.streak;
+      this.save();
+    }
   }
 
   /* ============================================================
-     PythonEngine + SqlEngine (unchanged logic from v2.1)
+     PythonEngine — Pyodide in a Worker, loaded on first Python start.
+     A wall-clock cap terminates the worker, so an infinite loop can be
+     aborted with Ctrl+C and does not freeze the tab.
      ============================================================ */
+  const PYTHON_HIDDEN = {
+    py_intro_04: [{ assertion:{ type:'expression', expression:'total == (a + b) and a == 10 and b == 5', expected:true } }],
+    py_intro_05: [{ setup:'cost = 500', assertion:{ type:'stdout', value:'' } }],
+    py_intro_08: [{ setup:'vehicles = [9, 8, 7]', assertion:{ type:'binding', name:'count', value:3 } }],
+    py_am_01: [{ setup:"mechanics = ['Sam', 'Pat']", assertion:{ type:'stdout', value:'Sam\nPat' } }],
+    py_am_02: [{ assertion:{ type:'call', call:'add_two(20, 1)', expected:21 } }],
+    py_am_05: [{ assertion:{ type:'call', call:"greet('Sam')", expected:'Hello, Sam' } }],
+    py_am_06: [{ setup:'nums = [1, 2, 3]', assertion:{ type:'binding', name:'total', value:6 } }],
+    py_am_07: [{ setup:'nums = [1, 3, 2]', assertion:{ type:'binding', name:'desc', value:[3, 2, 1] } }],
+    py_am_08: [{ setup:"statuses = ['Open', 'Open']", assertion:{ type:'binding', name:'open_count', value:2 } }],
+    py_am_09: [{ setup:"csv = 'a,b'", assertion:{ type:'binding', name:'parts', value:['a', 'b'] } }],
+    py_am_10: [{ setup:"names = ['C']\nages = [1]", assertion:{ type:'binding', name:'pairs', value:[['C', 1]] } }],
+    py_int_01: [{ setup:'prices = [1, 501, 500]', assertion:{ type:'binding', name:'high', value:[501] } }],
+    py_int_03: [{ assertion:{ type:'call', call:'total_with_tax(100, 0.5)', expected:150 } }],
+    py_int_04: [{ setup:"orders = [{'total_cost': 10}, {'total_cost': 5}]", assertion:{ type:'binding', name:'grand_total', value:15 } }],
+    py_int_05: [{ setup:'nums = [1, 2, 3]', assertion:{ type:'binding', name:'evens', value:[2] } }],
+    py_int_06: [{ setup:'nums = [5]', assertion:{ type:'binding', name:'doubled', value:[10] } }],
+    py_int_07: [{ setup:"people = [{'name':'Z','age':1},{'name':'Y','age':3}]", assertion:{ type:'binding', name:'by_age', value:[{name:'Z', age:1},{name:'Y', age:3}] } }],
+    py_int_08: [{ setup:"d = {'c': 7}", assertion:{ type:'binding', name:'value', value:7 } }],
+    py_int_09: [{ setup:'a = {1, 2}\nb = {2, 3}', assertion:{ type:'binding', name:'common', value:[2] } }],
+    py_int_10: [{ setup:'price = 2', assertion:{ type:'binding', name:'msg', value:'Price: $2.00' } }],
+    py_exp_01: [{ assertion:{ type:'expression', expression:"WorkOrder(2, 5, 'Closed').is_open()", expected:false } }],
+    py_exp_02: [{ setup:"orders = [{'total_cost': 10, 'status': 'Open'}, {'total_cost': 3, 'status': 'Open'}]", assertion:{ type:'binding', name:'open_total', value:13 } }],
+    py_exp_04: [
+      { assertion:{ type:'call', call:'safe_div(9, 3)', expected:3 } },
+      { assertion:{ type:'call', call:'safe_div(1, 0)', expected:null } },
+    ],
+    py_exp_05: [{ assertion:{ type:'expression', expression:"str(Mechanic('Sam'))", expected:'Mechanic: Sam' } }],
+    py_exp_06: [{ assertion:{ type:'expression', expression:'Order(50).tax', expected:4 } }],
+    py_exp_07: [{ assertion:{ type:'expression', expression:'MathKit.add(10, -3)', expected:7 } }],
+    py_exp_08: [{ setup:"items = ['x']", assertion:{ type:'binding', name:'indexed', value:[[0, 'x']] } }],
+    py_exp_09: [{ setup:"words = ['a', 'a']", assertion:{ type:'expression', expression:'dict(counts)', expected:{a:2} } }],
+    py_exp_10: [{ setup:"keys = ['z', 'z', 'y']", assertion:{ type:'expression', expression:'dict(groups)', expected:{z:2, y:1} } }],
+    py_mas_01: [{ setup:"_mechanics = [{'name':'A','revenue':1},{'name':'B','revenue':3}]", assertion:{ type:'expression', expression:'rank_revenue(_mechanics)', expected:[{name:'B', revenue:3, rank:1},{name:'A', revenue:1, rank:2}] } }],
+    py_mas_02: [{ assertion:{ type:'call', call:'factorial(4)', expected:24 } }],
+    py_mas_04: [{ assertion:{ type:'expression', expression:'double(lambda: 3)()', expected:6 } }],
+    py_mas_05: [{ setup:'nums = [2, 2, 2]', assertion:{ type:'binding', name:'total', value:6 } }],
+    py_mas_06: [{ assertion:{ type:'expression', expression:'[memo_sq(3), _cache.get(3)]', expected:[9, 9] } }],
+    py_mas_10: [{ assertion:{ type:'call', call:'fib(7)', expected:13 } }],
+  };
+
   class PythonEngine {
-    constructor() { this.pyodide=null; this.ready=false; this.failed=false; this.failReason=''; this.loading=null; }
+    constructor() {
+      this.ready = false;
+      this.failed = false;
+      this.failReason = '';
+      this.loading = null;
+      this.worker = null;
+      this._pending = new Map();
+      this._seq = 0;
+      this.requested = false;
+    }
+
+    _spawn() {
+      if (this.worker) return;
+      this.worker = new Worker('pyodide-worker.js');
+      this.worker.onmessage = (ev) => {
+        const data = ev.data || {};
+        const pending = this._pending.get(data.id);
+        if (!pending) return;
+        clearTimeout(pending.timer);
+        this._pending.delete(data.id);
+        pending.resolve(data);
+      };
+      this.worker.onerror = (e) => {
+        const detail = (e && e.message) ? e.message : 'Python worker error';
+        this._failAll(detail);
+      };
+    }
+
+    _kill() {
+      if (this.worker) {
+        try { this.worker.terminate(); } catch (_) {}
+        this.worker = null;
+      }
+    }
+
+    _failAll(detail) {
+      const pending = [...this._pending.values()];
+      this._pending.clear();
+      pending.forEach(p => {
+        clearTimeout(p.timer);
+        p.resolve({ kind:'error', detail });
+      });
+    }
+
+    _rpc(msg, timeoutMs) {
+      if (!this.worker) {
+        return Promise.resolve({ kind:'error', detail:'Python worker is not running.' });
+      }
+      const id = ++this._seq;
+      return new Promise((resolve) => {
+        const timer = setTimeout(() => {
+          this._pending.delete(id);
+          this._kill();
+          this.ready = false;
+          this.loading = null;
+          resolve({
+            kind: 'timeout',
+            detail: 'Execution timed out after ' + Math.round(timeoutMs / 1000) +
+                    's (possible infinite loop). The Python runtime was stopped. Run again to restart it.',
+          });
+        }, timeoutMs);
+        this._pending.set(id, { resolve, timer });
+        try { this.worker.postMessage(Object.assign({ id }, msg)); }
+        catch (e) {
+          clearTimeout(timer);
+          this._pending.delete(id);
+          resolve({ kind:'error', detail:String(e.message || e) });
+        }
+      });
+    }
+
+    abort() {
+      const pending = [...this._pending.values()];
+      this._pending.clear();
+      this._kill();
+      this.ready = false;
+      this.loading = null;
+      pending.forEach(p => {
+        clearTimeout(p.timer);
+        p.resolve({ kind:'aborted', detail:'Aborted.' });
+      });
+    }
+
+    /* Start the download without marking Python as requested, so hovering
+       Start Python does not flip the header to LOADING. */
+    warm() {
+      if (this.requested || this.ready || this.failed) return this.loading || Promise.resolve();
+      return this._load();
+    }
+
     init() {
+      this.requested = true;
+      return this._load();
+    }
+
+    _load() {
+      if (this.ready) return Promise.resolve();
       if (this.loading) return this.loading;
+      this.failed = false;
+      this.failReason = '';
       this.loading = (async () => {
         try {
-          const loadP = loadPyodide({ indexURL: PYODIDE_INDEX_URL });
-          const timeoutP = new Promise((_, rej) =>
-            setTimeout(() => rej(new Error(`timed out after ${PYODIDE_TIMEOUT_MS/1000}s`)), PYODIDE_TIMEOUT_MS));
-          this.pyodide = await Promise.race([loadP, timeoutP]);
+          if (typeof Worker !== 'function') throw new Error('Web Workers are unavailable in this browser');
+          const res = await fetch(PYODIDE_JS_URL, { integrity: PYODIDE_JS_SRI, cache: 'force-cache' });
+          if (!res.ok) throw new Error('Pyodide script HTTP ' + res.status);
+          await res.arrayBuffer();
+          this._spawn();
+          const reply = await this._rpc({
+            kind: 'init',
+            indexURL: PYODIDE_INDEX_URL,
+            jsUrl: PYODIDE_JS_URL,
+          }, PYODIDE_TIMEOUT_MS);
+          if (reply.kind === 'aborted') throw new Error('Python load aborted');
+          if (reply.kind !== 'ready') throw new Error(reply.detail || 'Pyodide failed to start');
           this.ready = true;
+          this.failed = false;
         } catch (e) {
-          this.failed = true; this.failReason = String(e.message || e);
+          this.failed = true;
+          this.ready = false;
+          this.failReason = String(e.message || e);
+          this._kill();
           console.warn('Pyodide init failed:', e);
+        } finally {
+          this.loading = null;
         }
       })();
       return this.loading;
     }
-    _pyToJs(val) {
-      if (val === undefined || val === null) return val;
-      if (typeof val === 'object' && val.toJs) return val.toJs({ dict_converter: Object.fromEntries });
-      return val;
-    }
-    async evaluate(userCode, question) {
-      if (this.failed) return this._fallback(userCode, question);
-      if (!this.ready) { await this.init(); if (this.failed) return this._fallback(userCode, question); }
-      return this._pyodideEvaluate(userCode, question);
-    }
 
-    /** Run user code with stdout capture but DON'T grade.
-     *  Also probes the assertion target (binding / call / expression)
-     *  so the user sees a useful value even when their code doesn't print. */
-    async preview(userCode, question) {
-      if (this.failed) {
-        return { error:'Python runtime unavailable. In pattern-match mode, type `submit` to check your answer against the expected syntax.' };
-      }
-      if (!this.ready) {
-        await this.init();
-        if (this.failed) return { error:'Python runtime unavailable.' };
-      }
-      const py = this.pyodide;
-      const ns = py.toPy({});
-      try {
-        await py.runPythonAsync("import sys, io\n__stdout__ = io.StringIO()\nsys.stdout = __stdout__", { globals: ns });
-        if (question.setup) {
-          try { await py.runPythonAsync(question.setup, { globals: ns }); }
-          catch (e) { return { error:`setup error: ${this._cleanError(e)}` }; }
-        }
-        try { await py.runPythonAsync(userCode, { globals: ns }); }
-        catch (e) { return { error: this._cleanError(e) }; }
-        const stdout = String(await py.runPythonAsync("__stdout__.getvalue()", { globals: ns }));
-
-        // Probe the assertion target so user sees the actual value their code produced.
-        const a = question.assertion;
-        let probe = null;
-        if (a && a.type === 'binding') {
-          const v = ns.get(a.name);
-          if (v === undefined) {
-            probe = { label: a.name, undef: true };
-          } else {
-            const js = this._pyToJs(v);
-            if (v && v.destroy) v.destroy();
-            probe = { label: a.name, value: js };
-          }
-        } else if (a && (a.type === 'call' || a.type === 'expression')) {
-          const expr = a.call || a.expression;
-          try {
-            const r = await py.runPythonAsync(expr, { globals: ns });
-            const js = this._pyToJs(r);
-            if (r && r.destroy) r.destroy();
-            probe = { label: expr, value: js };
-          } catch (e) {
-            probe = { label: expr, error: this._cleanError(e) };
-          }
-        }
-        return { stdout, probe };
-      } finally { if (ns && ns.destroy) ns.destroy(); }
+    _hiddenFor(question) {
+      return (question && PYTHON_HIDDEN[question.id]) || [];
     }
 
     _fallback(userCode, question) {
       if (!question.fallback_expected) return { ok:false, detail:'Python runtime unavailable and no fallback pattern defined.' };
       const ok = normPythonSource(userCode) === normPythonSource(question.fallback_expected);
       return ok ? { ok:true, degraded:true }
-                : { ok:false, detail:'(pattern-match mode) your answer must match expected syntax closely.' };
+                : { ok:false, detail:'(pattern-match mode) your answer must match expected syntax closely. Hidden checks need the Python runtime.' };
     }
-    async _pyodideEvaluate(userCode, question) {
-      const py = this.pyodide;
-      const ns = py.toPy({});
-      try {
-        await py.runPythonAsync("import sys, io\n__stdout__ = io.StringIO()\nsys.stdout = __stdout__", { globals: ns });
-        if (question.setup) await py.runPythonAsync(question.setup, { globals: ns });
-        try { await py.runPythonAsync(userCode, { globals: ns }); }
-        catch (e) { return { ok:false, detail:this._cleanError(e) }; }
-        const stdout = String(await py.runPythonAsync("__stdout__.getvalue()", { globals: ns }));
-        const a = question.assertion;
-        if (!a) return { ok:false, detail:'Question is missing an assertion.' };
 
-        if (a.type === 'binding') {
-          const pyVal = ns.get(a.name);
-          if (pyVal === undefined) return { ok:false, detail:`Variable '${a.name}' was not defined.` };
-          const js = this._pyToJs(pyVal);
-          if (pyVal && pyVal.destroy) pyVal.destroy();
-          const ok = deepEq(js, a.value);
-          return ok ? { ok:true } : { ok:false,
-            detail:`expected  ${a.name} = ${truncate(JSON.stringify(a.value))}\n   got       ${a.name} = ${truncate(JSON.stringify(js))}` };
-        }
-        if (a.type === 'stdout') {
-          const exp = a.value.trim(), got = stdout.trim();
-          return exp === got ? { ok:true } : { ok:false,
-            detail:`expected stdout: ${truncate(JSON.stringify(exp))}\n   got stdout:      ${truncate(JSON.stringify(got))}` };
-        }
-        if (a.type === 'call' || a.type === 'expression') {
-          const expr = a.call || a.expression;
-          let pyResult;
-          try { pyResult = await py.runPythonAsync(expr, { globals: ns }); }
-          catch (e) { return { ok:false, detail:`error evaluating '${expr}': ${this._cleanError(e)}` }; }
-          const js = this._pyToJs(pyResult);
-          if (pyResult && pyResult.destroy) pyResult.destroy();
-          const ok = deepEq(js, a.expected);
-          return ok ? { ok:true } : { ok:false,
-            detail:`expected  ${expr} == ${truncate(JSON.stringify(a.expected))}\n   got       ${expr} == ${truncate(JSON.stringify(js))}` };
-        }
-        return { ok:false, detail:`unknown assertion type: ${a.type}` };
-      } finally { if (ns && ns.destroy) ns.destroy(); }
+    async evaluate(userCode, question) {
+      if (this.failed) return this._fallback(userCode, question);
+      if (!this.ready) { await this.init(); if (this.failed) return this._fallback(userCode, question); }
+      const reply = await this._rpc({
+        kind: 'evaluate',
+        userCode,
+        setup: (question && question.setup) || '',
+        assertion: question && question.assertion,
+        hidden: this._hiddenFor(question),
+      }, PY_EVAL_TIMEOUT_MS);
+      if (reply.kind === 'timeout' || reply.kind === 'aborted') {
+        return { ok:false, detail: reply.detail, aborted: reply.kind === 'aborted' };
+      }
+      if (reply.kind === 'error') return { ok:false, detail: reply.detail || 'Python worker error' };
+      return { ok: !!reply.ok, detail: reply.detail || '' };
     }
-    _cleanError(e) {
-      const msg = String(e.message || e);
-      return msg.split('\n').map(l => l.trimEnd()).filter(l => l.length).slice(-3).join('\n   ');
+
+    async preview(userCode, question) {
+      if (this.failed) {
+        return { error:'Python runtime unavailable (' + this.failReason + '). In pattern-match mode, Submit checks your answer against the expected syntax.' };
+      }
+      if (!this.ready) {
+        await this.init();
+        if (this.failed) return { error:'Python runtime unavailable: ' + this.failReason };
+      }
+      const reply = await this._rpc({
+        kind: 'preview',
+        userCode,
+        setup: (question && question.setup) || '',
+        assertion: question && question.assertion,
+      }, PY_EVAL_TIMEOUT_MS);
+      if (reply.kind === 'aborted') return { aborted:true, error:'Aborted.' };
+      if (reply.kind === 'timeout') return { error: reply.detail };
+      if (reply.kind === 'error') return { error: reply.detail || 'Python worker error' };
+      if (reply.error) return { error: reply.error, stdout: reply.stdout || '' };
+      return { stdout: reply.stdout || '', probe: reply.probe || null };
     }
   }
 
@@ -3390,7 +3620,10 @@
       if (this.loading) return this.loading;
       this.loading = (async () => {
         try {
-          this.SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}` });
+          if (typeof initSqlJs !== 'function') {
+            await loadScript('vendor/sql.js/sql-wasm.js');
+          }
+          this.SQL = await initSqlJs({ locateFile: f => `vendor/sql.js/${f}` });
           this.db = new this.SQL.Database();
           this.db.run(SCHEMA_SQL); this.db.run(SEED_SQL);
           this.ready = true;
@@ -3530,7 +3763,7 @@
         const cls = p.active ? 'nav-pill active' : 'nav-pill';
         // Active pill is non-navigating; others link to p.url.
         if (p.active) return `<span class="${cls}">${p.label}</span>`;
-        return `<a class="${cls}" href="${p.url}">${p.label}</a>`;
+        return `<a class="${cls}" href="${esc(p.url)}">${esc(p.label)}</a>`;
       }).join('');
     }
 
@@ -3588,15 +3821,19 @@
       if (!question) {
         this.activeQ.innerHTML = `
           <div class="q-card">
-            <div class="q-empty">No track engaged. Type <code>start python</code>, <code>start sql</code>, <code>start javascript</code>, or <code>start rust</code> to begin.</div>
+            <div class="q-empty">Pick a track to start. You can also type <code>start sql</code> at the prompt.</div>
+            <div class="start-row">
+              <button type="button" class="start-btn" data-track="sql">Start SQL</button>
+              <button type="button" class="start-btn" data-track="python">Start Python</button>
+              <button type="button" class="start-btn" data-track="javascript">Start JavaScript</button>
+              <button type="button" class="start-btn" data-track="rust">Start Rust</button>
+            </div>
           </div>`;
         return;
       }
       const tier = this.state.getCurrentTier(track);
       const done = this.state.countCompleteInTier(track, tier);
-      const hintHtml = question.hint
-        ? `<div class="q-hint">💡 ${esc(question.hint)}</div>` : '';
-      const flowHint = `<div class="q-hint"><code>Enter</code> = newline only · click <code>▶ RUN</code> / <code>✓ SUBMIT</code> (or Ctrl+Enter)</div>`;
+      const flowHint = `<div class="q-hint"><code>Enter</code> runs a one-line command such as exit or hint. <code>Ctrl+Enter</code> runs your code. <code>Ctrl+Shift+Enter</code> submits it.</div>`;
       this.activeQ.innerHTML = `
         <div class="q-card">
           <div class="q-tag ${tier}">
@@ -3604,7 +3841,6 @@
             ${track.toUpperCase()} · ${done + 1}/${GATE_SIZE} · ${esc(question.id)}
           </div>
           <div class="q-prompt">${esc(question.prompt)}</div>
-          ${hintHtml}
           ${flowHint}
         </div>`;
     }
@@ -3691,9 +3927,8 @@
    *
    * Runs each evaluate/preview in a fresh Worker spun up from a Blob URL.
    * The Worker source is `globalThis.GHOST_MARKER='<uuid>';` followed by the
-   * verbatim contents of boot.js (sandbox + assertion runtime). See
-   * /home/claude/v3.9/boot.js for the full source; the BOOT_SOURCE constant
-   * below is the build-time-baked copy.
+   * verbatim contents of the BOOT_SOURCE string below (sandbox + assertion
+   * runtime). That string is the source of truth; there is no separate boot.js.
    *
    * The Worker is single-use: each grading call gets a fresh worker so the
    * 3000ms execution budget is per-question, not per-session. Workers are
@@ -3720,6 +3955,10 @@
     }
 
     async init() { /* synchronous — already done in constructor */ }
+
+    abort() {
+      if (this._cancel) this._cancel();
+    }
 
     /* Run a single grading round in a fresh Worker.
      *  msg: { kind: 'evaluate'|'preview', userCode, setup, assertion, requestId }
@@ -3748,10 +3987,12 @@
         const finish = (result) => {
           if (settled) return;
           settled = true;
+          this._cancel = null;
           try { worker.terminate(); } catch (_) {}
           URL.revokeObjectURL(url);
           resolve(result);
         };
+        this._cancel = () => finish({ ok: false, aborted: true, detail: 'Aborted.' });
         const timer = setTimeout(
           () => finish({ ok: false, detail: 'worker timeout (>' + HARD_CAP_MS + 'ms walltime)' }),
           HARD_CAP_MS
@@ -3790,7 +4031,7 @@
         setup: question.setup || '',
         assertion: question.assertion,
       });
-      return { ok: !!r.ok, detail: r.detail || '' };
+      return { ok: !!r.ok, detail: r.detail || '', aborted: !!r.aborted };
     }
 
     /* Public API: preview the user's code without judging pass/fail.
@@ -3818,8 +4059,8 @@
   JsEngine.BOOT_SOURCE = `// boot.js — runs INSIDE the worker on startup (browser or worker_threads).
 // Applies sandbox, then installs the marker-gated message handler.
 //
-// In production this file's source is concatenated into a Blob URL when the
-// JsEngine spins up a worker. In Node tests it's required from worker-node.js.
+// In production this source is concatenated into a Blob URL when JsEngine
+// spins up a worker. It is not loaded from a separate file.
 
 'use strict';
 
@@ -3848,16 +4089,22 @@ const SANDBOX_DELETIONS = [
 // ============================================================================
 
 function nuke(prop) {
-  // Belt-and-suspenders: try delete, then redefine as non-configurable
-  // undefined, then plain assignment. At least one path closes the surface
-  // on every modern engine. The adversarial tests verify it actually worked.
-  try { delete globalThis[prop]; } catch (_) { /* ignore */ }
-  try {
-    Object.defineProperty(globalThis, prop, {
-      value: undefined, writable: false, configurable: false,
-    });
-  } catch (_) { /* ignore */ }
-  try { globalThis[prop] = undefined; } catch (_) { /* ignore */ }
+  // Delete the name on globalThis AND on every prototype up the chain.
+  // Shadowing globalThis.fetch is not enough: WorkerGlobalScope.prototype.fetch
+  // is still reachable via Object.getPrototypeOf.
+  let obj = globalThis;
+  const seen = [];
+  while (obj && seen.indexOf(obj) === -1) {
+    seen.push(obj);
+    try { delete obj[prop]; } catch (_) { /* ignore */ }
+    try {
+      Object.defineProperty(obj, prop, {
+        value: undefined, writable: false, configurable: false,
+      });
+    } catch (_) { /* ignore */ }
+    try { obj[prop] = undefined; } catch (_) { /* ignore */ }
+    try { obj = Object.getPrototypeOf(obj); } catch (_) { break; }
+  }
 }
 
 function installCryptoAllowlist() {
@@ -3966,12 +4213,11 @@ const MARKER = (typeof globalThis.GHOST_MARKER === 'string')
   ? globalThis.GHOST_MARKER
   : 'unset-marker';
 
-// Track stray messages (postMessage spam) for the adversarial test.
+// Count messages that arrive without the per-worker marker.
 let strayMessageCount = 0;
 
 PORT.listen(async (data) => {
-  // Marker check — silently drop anything without the right token. This is
-  // the defense for adversarial test #5 (postMessage spam from user code).
+  // Marker check — silently drop anything without the right token.
   if (!data || data.__ghost_marker__ !== MARKER) {
     strayMessageCount++;
     return;
@@ -3980,8 +4226,8 @@ PORT.listen(async (data) => {
   const { kind, userCode, setup, assertion, requestId } = data;
 
   if (kind === 'sandbox-probe') {
-    // Direct surface inspection for the adversarial-test harness — runs no
-    // user code, just reports what the sandbox looks like from inside.
+    // Surface inspection — runs no user code. Reports what the sandbox
+    // looks like from inside the worker.
     PORT.send({
       __ghost_marker__: MARKER,
       requestId,
@@ -4008,8 +4254,7 @@ PORT.listen(async (data) => {
 });
 
 // ============================================================================
-// PROBE — for adversarial tests, lets the harness ask "is fetch defined?"
-// without going through user-code grading.
+// PROBE — lets a check ask "is fetch defined?" without grading user code.
 // ============================================================================
 
 function collectProbe(spec) {
@@ -4121,8 +4366,10 @@ async function runUserCode(userCode, setupCode, assertion, isPreview) {
 
   // Build a JSON-shaped read map. Each read is wrapped in its own try/catch
   // so an undefined binding or thrown getter is reported, not fatal.
+  // The reader is async so an assertion expression may use await
+  // (safe_predict, delayed_increment). The outer wrapper is already async.
   const readObj = '{' + reads.map(([key, expr]) =>
-    JSON.stringify(key) + ': (function(){ try { var __v=(' + expr + ');' +
+    JSON.stringify(key) + ': await (async function(){ try { var __v=(' + expr + ');' +
       ' return { ok:true, undef:(typeof __v==="undefined"), v:__v }; }' +
       ' catch(e){ return { ok:false, err:String(e && e.message || e) }; } })()'
   ).join(',') + '}';
@@ -4359,6 +4606,10 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
       const reverseMap = RustEngine._buildReverseAltMap(a.alternatives || {});
       const userSub = RustEngine._applyAlternatives(userNorm, reverseMap);
       if (userSub === canonNorm) return { ok: true };
+      // Extra `: Type` on the user's side is accepted. Types the canonical
+      // form itself writes are still required, because only the user string
+      // is loosened.
+      if (RustEngine._stripTypeAscriptions(userSub) === canonNorm) return { ok: true };
 
       return { ok: false, detail: RustEngine._grammarLite(userSub, canonNorm, userCode, a, tags) };
     }
@@ -4371,12 +4622,129 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
       };
     }
 
-    /* Pass 1: identify string/char literal ranges. Pass 2: emit char-by-char,
-     * preserving literal interiors verbatim and collapsing/dropping whitespace
-     * outside literals per the locked design. */
+    /* Drop // and block comments outside strings so a trailing note is not
+     * graded as a missing semicolon. Mirrors tests/qa_harness.py. */
+    static _copyString(s, i) {
+      const n = s.length;
+      let j = i + 1;
+      while (j < n && s[j] !== '"') {
+        if (s[j] === '\\' && j + 1 < n) j += 2;
+        else j += 1;
+      }
+      if (j < n) j += 1;
+      return [s.slice(i, j), j];
+    }
+    static _copyRawString(s, i) {
+      const n = s.length;
+      if (i >= n || s[i] !== 'r') return null;
+      if (i > 0 && /[A-Za-z0-9_]/.test(s[i - 1])) return null;
+      let hashes = 0;
+      let j = i + 1;
+      while (j < n && s[j] === '#') { hashes += 1; j += 1; }
+      if (j >= n || s[j] !== '"') return null;
+      j += 1;
+      const closer = '"' + '#'.repeat(hashes);
+      const end = s.indexOf(closer, j);
+      if (end < 0) return [s.slice(i), n];
+      return [s.slice(i, end + closer.length), end + closer.length];
+    }
+    static _stripComments(input) {
+      const s = String(input);
+      const n = s.length;
+      let out = '';
+      let i = 0;
+      while (i < n) {
+        const raw = RustEngine._copyRawString(s, i);
+        if (raw) { out += raw[0]; i = raw[1]; continue; }
+        const c = s[i];
+        if (c === '"') {
+          const pair = RustEngine._copyString(s, i);
+          out += pair[0]; i = pair[1]; continue;
+        }
+        if (c === "'") {
+          if (i + 3 < n && s[i + 1] === '\\' && s[i + 3] === "'") { out += s.slice(i, i + 4); i += 4; continue; }
+          if (i + 2 < n && s[i + 1] !== "'" && s[i + 1] !== '\\' && s[i + 2] === "'") { out += s.slice(i, i + 3); i += 3; continue; }
+          out += c; i += 1; continue;
+        }
+        if (c === '/' && s[i + 1] === '/') {
+          i += 2;
+          while (i < n && s[i] !== '\n') i += 1;
+          continue;
+        }
+        if (c === '/' && s[i + 1] === '*') {
+          i += 2;
+          while (i + 1 < n && !(s[i] === '*' && s[i + 1] === '/')) i += 1;
+          if (i + 1 < n) i += 2;
+          out += ' ';
+          continue;
+        }
+        out += c;
+        i += 1;
+      }
+      return out;
+    }
+    static _scanType(s, i) {
+      const n = s.length;
+      const start = i;
+      const ident = () => {
+        if (i >= n || !/[A-Za-z_]/.test(s[i])) return false;
+        i += 1;
+        while (i < n && /[A-Za-z0-9_]/.test(s[i])) i += 1;
+        return true;
+      };
+      if (s[i] === '&') {
+        i += 1;
+        if (s.startsWith('mut', i) && (i + 3 >= n || !/[A-Za-z0-9_]/.test(s[i + 3]))) i += 3;
+        if (s[i] === "'") {
+          i += 1;
+          while (i < n && /[A-Za-z0-9_]/.test(s[i])) i += 1;
+        }
+      }
+      if (!ident()) return start;
+      while (s.startsWith('::', i)) {
+        i += 2;
+        if (!ident()) break;
+      }
+      if (s[i] === '<') {
+        let depth = 0;
+        while (i < n) {
+          if (s[i] === '<') { depth += 1; i += 1; }
+          else if (s[i] === '>') { depth -= 1; i += 1; if (depth === 0) break; }
+          else if (s[i] === '"') return start;
+          else i += 1;
+        }
+        if (depth !== 0) return start;
+      }
+      return i > start ? i : start;
+    }
+    static _stripTypeAscriptions(input) {
+      const s = String(input || '');
+      const n = s.length;
+      let out = '';
+      let i = 0;
+      while (i < n) {
+        const c = s[i];
+        if (c === '"') {
+          const pair = RustEngine._copyString(s, i);
+          out += pair[0]; i = pair[1]; continue;
+        }
+        if (c === "'" && i + 2 < n && s[i + 2] === "'") { out += s.slice(i, i + 3); i += 3; continue; }
+        if (c === ':' && s[i + 1] !== ':' && (i === 0 || s[i - 1] !== ':')) {
+          const end = RustEngine._scanType(s, i + 1);
+          if (end > i + 1) { i = end; continue; }
+        }
+        out += c;
+        i += 1;
+      }
+      return out;
+    }
+
+    /* Strip comments, then pass 1: identify string/char literal ranges.
+     * Pass 2: emit char-by-char, preserving literal interiors verbatim and
+     * collapsing/dropping whitespace outside literals per the locked design. */
     static normalize(input) {
       if (input == null) return '';
-      const s = String(input);
+      const s = RustEngine._stripComments(String(input));
       const n = s.length;
       const literals = [];
       let i = 0;
@@ -4657,9 +5025,9 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
       this.writeln('');
       if (isNarrow) {
         // Single-line compact banner for small viewports.
-        this.writeln(this.C.amber + '  >> GHOST TRAINING v4.0.4' + this.C.reset + this.C.dim + '  //  Ghost Strategies LLC' + this.C.reset);
+        this.writeln(this.C.amber + '  >> GHOST TRAINING v4.0.5' + this.C.reset + this.C.dim + '  //  Ghost Strategies LLC' + this.C.reset);
       } else {
-        this.writeln(this.C.amber + '  >> GHOST TRAINING TERMINAL v4.0.4' + this.C.reset);
+        this.writeln(this.C.amber + '  >> GHOST TRAINING TERMINAL v4.0.5' + this.C.reset);
         this.writeln(this.C.dim  + '  >> Ghost Strategies LLC' + this.C.reset);
       }
       this.writeln('');
@@ -4700,19 +5068,36 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
       const foot = document.getElementById('footer-engines');
       const dot  = document.getElementById('hdr-dot');
       const stat = document.getElementById('hdr-status');
-      const pyLabel  = this.py.ready  ? 'ready'    : (this.py.failed  ? 'DEGRADED' : 'loading');
-      const sqlLabel = this.sql.ready ? 'ready'    : (this.sql.failed ? 'FAILED'   : 'loading');
-      const jsLabel  = this.js.ready  ? 'ready'    : (this.js.failed  ? 'FAILED'   : 'loading');
-      const rustLabel = this.rust.ready ? 'ready'  : (this.rust.failed ? 'FAILED'  : 'loading');
-      foot.textContent = `engines · python: ${pyLabel}  ·  sql: ${sqlLabel}  ·  js: ${jsLabel}  ·  rust: ${rustLabel}`;
+      const banner = document.getElementById('engine-banner');
+      const pyLabel = !this.py.requested ? 'idle'
+        : (this.py.ready ? 'ready' : (this.py.failed ? 'FAILED' : 'loading'));
+      const sqlLabel = this.sql.ready ? 'ready' : (this.sql.failed ? 'FAILED' : (this.sql.loading ? 'loading' : 'idle'));
+      const jsLabel  = this.js.ready  ? 'ready' : (this.js.failed  ? 'FAILED' : 'loading');
+      const rustLabel = this.rust.ready ? 'ready' : (this.rust.failed ? 'FAILED' : 'loading');
+      if (foot) foot.textContent = `engines · python: ${pyLabel}  ·  sql: ${sqlLabel}  ·  js: ${jsLabel}  ·  rust: ${rustLabel}`;
+      if (!dot || !stat) return;
 
-      const anyLoading = (!this.py.ready && !this.py.failed) || (!this.sql.ready && !this.sql.failed);
+      const sqlLoading = !this.sql.ready && !this.sql.failed;
       dot.classList.remove('loading','failed');
       stat.classList.remove('amber','green','red');
-      if (anyLoading) { dot.classList.add('loading'); stat.textContent='BOOTING'; stat.classList.add('amber'); }
-      else if (this.sql.failed && (this.py.failed || !this.py.ready)) { dot.classList.add('failed'); stat.textContent='OFFLINE'; stat.classList.add('red'); }
-      else if (this.py.failed) { dot.classList.add('loading'); stat.textContent='DEGRADED'; stat.classList.add('amber'); }
-      else { stat.textContent='ONLINE'; stat.classList.add('green'); }
+      let bannerText = '';
+      if (!this._shellReady || sqlLoading) {
+        dot.classList.add('loading'); stat.textContent = 'LOADING'; stat.classList.add('amber');
+      } else if (this.sql.failed) {
+        dot.classList.add('failed'); stat.textContent = 'OFFLINE'; stat.classList.add('red');
+        bannerText = "Couldn't load the SQL engine" + (this.sql.failReason ? ' (' + this.sql.failReason + ')' : '') + '. The terminal still works. If this persists, the sql.js files in vendor/ failed to load.';
+      } else if (this.py.requested && this.py.failed) {
+        dot.classList.add('failed'); stat.textContent = 'DEGRADED'; stat.classList.add('amber');
+        bannerText = "Couldn't load Python (" + (this.py.failReason || 'Pyodide') + "). SQL, JavaScript, and Rust still work. Python needs jsDelivr (cdn.jsdelivr.net). On a network that blocks that CDN, use another track or pattern-match mode.";
+      } else if (this.py.requested && !this.py.ready) {
+        dot.classList.add('loading'); stat.textContent = 'LOADING'; stat.classList.add('amber');
+      } else {
+        stat.textContent = 'ONLINE'; stat.classList.add('green');
+      }
+      if (banner) {
+        banner.textContent = bannerText;
+        banner.classList.toggle('show', !!bannerText);
+      }
     }
 
     /* ─── Input ─── */
@@ -4743,7 +5128,7 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
         } else if (code === 127 || code === 8) {
           this.backspaceAtCursor();
         } else if (code === 3) {
-          this.writeln('^C'); this._exitCurrentContext();
+          this._abort();
         } else if (code === 1) {  // Ctrl+A → Home
           this.cursorHome();
         } else if (code === 5) {  // Ctrl+E → End
@@ -4912,6 +5297,26 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
         this.write(this.inputBuffer);
       }
     }
+    /** Ctrl+C. If code is running, kill it and stay on the question.
+     *  Otherwise leave the track, which is the old idle-prompt behavior. */
+    _abort() {
+      this.writeln('^C');
+      if (this._busy) {
+        try { this.py.abort(); } catch (_) {}
+        try { this.js.abort(); } catch (_) {}
+        this._busy = false;
+        this.writeln(this.C.amber + '  Aborted.' + this.C.reset);
+        announce('Aborted.');
+        const kept = this._busyBuffer || '';
+        this.inputBuffer = kept;
+        this.cursorPos = kept.length;
+        this.writePrompt();
+        if (kept) this.redrawInput();
+        return;
+      }
+      this._exitCurrentContext();
+    }
+
     _exitCurrentContext() {
       this.inputBuffer='';
       this.cursorPos = 0;
@@ -4924,11 +5329,22 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
       this.writePrompt();
     }
 
-    /** v3.7: Enter behavior.
-     *  - TRACK mode: insert newline at cursor (NOT always at end). Never executes.
+    /** Enter behavior.
+     *  - TRACK mode, single-line meta-command (exit, hint, …): run it.
+     *  - TRACK mode otherwise: insert a newline. Code runs with Ctrl+Enter.
      *  - IDLE / other modes: Enter submits the line. */
     _onEnter() {
       if (this.mode === 'TRACK') {
+        const meta = this._tryMetaCommand(this.inputBuffer);
+        if (meta) {
+          this.write('\r\n');
+          this.inputBuffer = '';
+          this.cursorPos = 0;
+          this.renderedLines = 1;
+          this._pushHistory(meta);
+          this.handleAnswer(meta);
+          return;
+        }
         // Insert \n at cursor position. If cursor is at end, fast path; else redraw.
         if (this.cursorPos === this.inputBuffer.length) {
           this.inputBuffer += '\n';
@@ -4976,7 +5392,7 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
 
     /** Run button / Ctrl+Enter: execute current buffer as a preview. */
     async doRun() {
-      if (this.mode !== 'TRACK' || !this.currentQ) return;
+      if (this.mode !== 'TRACK' || !this.currentQ || this._busy) return;
       const buf = this.inputBuffer;
       if (!buf.trim()) {
         this.term.write('\r\n');
@@ -4998,7 +5414,12 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
       this.term.write('\r\n');
       this.inputBuffer = ''; this.cursorPos = 0;
       this.renderedLines = 1;
-      await this.runPreview(buf);
+      this._busy = true;
+      this._busyBuffer = buf;
+      let preview;
+      try { preview = await this.runPreview(buf); }
+      finally { this._busy = false; }
+      if (preview && preview.aborted) return;
       // Preserve the user's buffer so they can edit or Submit without retyping.
       this.inputBuffer = buf;
       this.cursorPos = buf.length;
@@ -5007,7 +5428,7 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
 
     /** Submit button / Ctrl+Shift+Enter: grade the current buffer. */
     async doSubmit() {
-      if (this.mode !== 'TRACK' || !this.currentQ) return;
+      if (this.mode !== 'TRACK' || !this.currentQ || this._busy) return;
       const buf = this.inputBuffer;
       if (!buf.trim()) {
         this.term.write('\r\n');
@@ -5028,7 +5449,10 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
       this.term.write('\r\n');
       this.inputBuffer = ''; this.cursorPos = 0;
       this.renderedLines = 1;
-      await this._gradeInput(buf);
+      this._busy = true;
+      this._busyBuffer = buf;
+      try { await this._gradeInput(buf); }
+      finally { this._busy = false; }
     }
 
     /** Hint button: show the active question's hint. */
@@ -5053,8 +5477,13 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
       let result;
       try { result = await engine.evaluate(userInput, q); }
       catch (e) { result = { ok:false, detail:`engine error: ${e.message || e}` }; }
+      if (result && result.aborted) {
+        announce('Aborted.');
+        return;
+      }
 
       this.state.recordAttempt(result.ok);
+      announce(result.ok ? 'Correct.' : ('Incorrect. ' + (result.detail || '')));
       if (result.ok) {
         this.state.markComplete(track, q.id);
         this.state.logActivity('correct', q.id);
@@ -5101,13 +5530,18 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
       // independent of whether a question is currently served).
       if (btnRef) btnRef.disabled = !inTrack;
 
+      const startBar = document.getElementById('start-bar');
+      const tools = document.getElementById('track-tools');
+      if (startBar) startBar.hidden = inTrack;
+      if (tools) tools.hidden = !inTrack;
+
       if (inTrack && hasQ) {
         const track = this.state.getActiveTrack();
         const tier = this.state.getCurrentTier(track);
         const done = this.state.countCompleteInTier(track, tier);
         status.textContent = `${track.toUpperCase()} · ${TIER_LABELS[tier]} · Q ${done + 1} of ${GATE_SIZE}`;
       } else {
-        status.textContent = 'Start a track to enable Run / Submit.';
+        status.textContent = 'Pick a track to begin.';
       }
     }
 
@@ -5197,8 +5631,10 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
       const engine = (track === 'python' ? this.py : track === 'sql' ? this.sql : track === 'javascript' ? this.js : this.rust);
       if (!engine.ready && !engine.failed) {
         this.writeln(this.C.amber + `  >> ${track.toUpperCase()} engine loading…` + this.C.reset);
-        if (track === 'python') this.writeln(this.C.dim + '  (one-time Pyodide download ~10MB)' + this.C.reset);
-        await engine.init();
+        if (track === 'python') this.writeln(this.C.dim + '  (one-time Pyodide download, about 10 MB)' + this.C.reset);
+        const pending = engine.init();
+        this.updateEngineStatus();
+        await pending;
         this.updateEngineStatus();
       }
       if (engine.failed && track === 'sql') {
@@ -5219,12 +5655,13 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
       const done = this.state.countCompleteInTier(track, tier);
       this.writeln('');
       this.writeln(`  ${this.C.amber}>> ${track.toUpperCase()} TRACK ENGAGED${this.C.reset}  ${this.C.dim}(${TIER_LABELS[tier]}, ${done}/${GATE_SIZE})${this.C.reset}`);
-      this.writeln(this.C.dim + '  ' + this.C.amber + 'Enter = newline (never executes).' + this.C.reset + this.C.dim + ' Click ' + this.C.amber + '▶ RUN' + this.C.reset + this.C.dim + ' to preview, ' + this.C.green + '✓ SUBMIT' + this.C.reset + this.C.dim + ' to grade.' + this.C.reset);
-      this.writeln(this.C.dim + '  Shortcuts: Ctrl+Enter = Run · Ctrl+Shift+Enter = Submit' + this.C.reset);
-      this.writeln(this.C.dim + '  Meta-commands (exit, hint, schema, help, clear' + (track === 'sql' ? ', tables, describe <t>, peek <t>' : '') + ') run via ▶ RUN or Ctrl+Enter.' + this.C.reset);
+      this.writeln(this.C.dim + '  ' + this.C.amber + 'Enter' + this.C.reset + this.C.dim + ' runs a one-line command (exit, hint, …) and otherwise inserts a newline.' + this.C.reset);
+      this.writeln(this.C.dim + '  ' + this.C.amber + '▶ RUN' + this.C.reset + this.C.dim + ' or Ctrl+Enter previews. ' + this.C.green + '✓ SUBMIT' + this.C.reset + this.C.dim + ' or Ctrl+Shift+Enter grades.' + this.C.reset);
+      this.writeln(this.C.dim + '  Ctrl+C aborts a running program. 💡 HINT shows the hint (it is not on the card).' + this.C.reset);
       this.writeln('');
       this.mode = 'TRACK';
       this.updateActionBar();
+      await this._ensureBundle();
       // v3.8a: auto-show concepts the first time a (track,tier) is seen this session.
       this._maybeAutoShowConcepts();
       this.serveNextQuestion();
@@ -5233,6 +5670,19 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
     /** v3.8a: print the current tier's concepts block if we haven't already
      *  auto-shown it for this (track,tier) in this session. Manual `concepts`
      *  command still works to re-show. */
+    async _ensureBundle() {
+      if (window.CONTENT_BUNDLE) return;
+      await new Promise((resolve) => {
+        const started = Date.now();
+        const timer = setInterval(() => {
+          if (window.CONTENT_BUNDLE || Date.now() - started > 4000) {
+            clearInterval(timer);
+            resolve();
+          }
+        }, 40);
+      });
+    }
+
     _maybeAutoShowConcepts() {
       const track = this.state.getActiveTrack();
       if (!track) return;
@@ -5355,6 +5805,7 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
           this.renderSqlTable(res.columns, res.rows);
         } else {
           const res = await engine.preview(userInput, q);
+          if (res && res.aborted) return { aborted: true };
           if (res.error) {
             this.writeln(this.C.red + '  Error:' + this.C.reset);
             res.error.split('\n').forEach(l => this.writeln('  ' + this.C.dim + l + this.C.reset));
@@ -5384,6 +5835,7 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
         this.writeln(this.C.red + `  Engine error: ${e.message || e}` + this.C.reset);
       }
       this.writePrompt();
+      return null;
     }
 
     /* v3.8a: LEARNING-LAYER COMMANDS ============================ */
@@ -5599,7 +6051,7 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
       flow.forEach(([c,d]) => this.writeln(`  ${this.C.amber}${c.padEnd(20)}${this.C.reset}${this.C.dim}${d}${this.C.reset}`));
 
       this.writeln('');
-      this.writeln('  ' + this.C.amber + 'META-COMMANDS' + this.C.reset + this.C.dim + ' (type alone + ' + this.C.reset + this.C.amber + '▶ RUN' + this.C.reset + this.C.dim + ' or Ctrl+Enter)' + this.C.reset);
+      this.writeln('  ' + this.C.amber + 'META-COMMANDS' + this.C.reset + this.C.dim + ' (type one on its own line and press Enter)' + this.C.reset);
       const meta = [
         ['hint',              'Show the hint for the current question'],
         ['concepts',          'Show the current tier concepts (auto-shown on tier entry)'],
@@ -5787,11 +6239,24 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
      BOOT
      ============================================================ */
   window.addEventListener('DOMContentLoaded', () => {
+    if (typeof Terminal !== 'function' || typeof FitAddon === 'undefined') {
+      const box = document.getElementById('boot-error');
+      if (box) {
+        box.hidden = false;
+        box.textContent = "Couldn't load the terminal library (vendor/xterm). The page script ran, but xterm.js did not. Check that those files are being served with the site.";
+      }
+      const stat = document.getElementById('hdr-status');
+      const dot = document.getElementById('hdr-dot');
+      if (stat) { stat.textContent = 'OFFLINE'; stat.className = 'stat-value red'; }
+      if (dot) { dot.className = 'dot failed'; }
+      return;
+    }
     const term = new Terminal({
       fontFamily: '"DM Mono", Menlo, Monaco, "Courier New", monospace',
       fontSize: 13,
       lineHeight: 1.3,
       cursorBlink: true,
+      screenReaderMode: true,
       cursorStyle: 'block',
       convertEol: true,
       theme: {
@@ -5917,25 +6382,45 @@ PORT.send({ __ghost_marker__: MARKER, kind: 'ready' });
       });
     }
 
+    app._shellReady = true;
     app.boot();
     app.updateEngineStatus();
     app.updateActionBar();
 
-    py.init().finally(() => app.updateEngineStatus());
-    sql.init().finally(() => app.updateEngineStatus());
+    // Lessons are not needed to show the prompt. Fetch them after the shell
+    // is up so they don't compete with xterm on a slow link.
+    const bundle = document.createElement('script');
+    bundle.src = 'content-bundle.js';
+    bundle.async = true;
+    document.body.appendChild(bundle);
 
-    // Loading spinner in footer engines line
-    const SPIN = ['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'];
-    let spinIdx = 0;
-    setInterval(() => {
-      const anyLoading = (!py.ready && !py.failed) || (!sql.ready && !sql.failed);
-      if (anyLoading) {
-        const c = SPIN[spinIdx++ % SPIN.length];
-        const pyLabel  = py.ready  ? 'ready'    : (py.failed  ? 'DEGRADED' : 'loading');
-        const sqlLabel = sql.ready ? 'ready'    : (sql.failed ? 'FAILED'   : 'loading');
-        document.getElementById('footer-engines').textContent = `${c} engines · python: ${pyLabel}  ·  sql: ${sqlLabel}`;
-      }
-    }, 90);
+    // SQL wasm starts after first paint. Python stays idle until that track opens.
+    const prewarm = () => { sql.init().finally(() => app.updateEngineStatus()); };
+    if (window.requestIdleCallback) requestIdleCallback(prewarm, { timeout: 400 });
+    else setTimeout(prewarm, 50);
+
+    document.addEventListener('click', (e) => {
+      const btn = e.target && e.target.closest && e.target.closest('[data-track]');
+      if (!btn) return;
+      const track = btn.getAttribute('data-track');
+      if (!track) return;
+      e.preventDefault();
+      app.cmdStart(track);
+      term.focus();
+    });
+    const warmPython = (e) => {
+      const btn = e.target && e.target.closest && e.target.closest('[data-track="python"]');
+      if (!btn) return;
+      app.py.warm();
+    };
+    document.addEventListener('pointerenter', warmPython, true);
+    document.addEventListener('focusin', warmPython, true);
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+
+    window.__ghost = { QUESTIONS, RustEngine, GameState, PythonEngine, JsEngine, SqlEngine, PYTHON_HIDDEN, app };
 
     // Clock
     const clock = document.getElementById('footer-clock');

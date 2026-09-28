@@ -12,7 +12,34 @@ Next milestone candidate is v4.1 (C++ + CUDA). v4.0 proved the pattern-match par
 
 ---
 
-## [v4.0.4] — 2026-06-22
+## [v4.0.5] — 2026-09-28
+
+Review fixes. The terminal shell, SQL, and JavaScript no longer depend on a CDN. Python loads only when that track starts, runs in a worker, and can be aborted. Rust accepts type ascriptions and comments. Progress import is validated.
+
+### Build artifact
+
+- **`index.html`** md5: `9bce02d9792dad5f28c038936f795e41`
+- **size:** 324,183 (build.py character count) / 325,552 bytes (`wc -c`)
+- **`content-bundle.js`** md5: `2306bbe6dd04074f1445d349dc57495f` (203,973 bytes). Lessons are no longer inlined into `index.html`.
+- **per-track words:** sql ~3160, python ~3465, javascript ~4605, rust ~3466
+
+### Fixed
+
+- Python `None` is compared as `null`, so `py_exp_04` accepts its reference answer and the Master tier unlocks.
+- Python runs in `pyodide-worker.js`. Ctrl+C and a 5s wall terminate the worker. The tab does not freeze.
+- A progress file without `completed` (object) and `activity` (array) is rejected before save. A bad `localStorage` value resets to an empty profile.
+- The header starts at LOADING and becomes ONLINE only when the shell and SQL are up. A blocked jsDelivr shows DEGRADED and leaves the terminal usable. Python stays idle until that track opens. Hovering or focusing Start Python starts the download without flipping the header to LOADING.
+- GARAGE and PORTFOLIO link to the live sibling sites. There is no Budget product, so that pill is gone.
+- JavaScript `fetch` is removed on the worker prototypes as well as `globalThis`. The page sets a Content-Security-Policy. `'unsafe-eval'` stays because the grader runs learner code.
+- The Rust grader strips comments and accepts an extra `: Type` on the user's side. The existing 319 cases still pass. A missing semicolon is reported only when the semicolon is actually missing.
+- The first screen has a start button per track. Inside a track, Enter runs a one-line command such as `hint` or `exit`.
+- Cheatsheet prose lines in a paragraph merge. The hint is not printed on the question card. Submit is Ctrl+Shift+Enter.
+- Session attempt counts persist. Migration keeps JavaScript and Rust progress.
+- Assertion expressions may `await`, so the JavaScript questions that check an async call can be graded.
+
+---
+
+## [v4.0.4] — 2026-07-06
 
 Patch release. Completes the terminal line editor's resize handling: a mid-edit window resize now re-anchors cleanly with **no leftover duplicate** — the cosmetic remainder v4.0.2 left after it removed the resize data-loss. Line-editing / boot JS only; all four per-track content bundles are byte-identical to v4.0.3.
 
@@ -28,7 +55,7 @@ Patch release. Completes the terminal line editor's resize handling: a mid-edit 
 
 ---
 
-## [v4.0.3] — 2026-06-22
+## [v4.0.3] — 2026-07-06
 
 Patch release. Adds command-history in-progress-line preservation to the terminal line editor (bash/zsh behavior). Line-editing JS only — no content, question, or grading changes, so all four per-track content bundles are byte-identical to v4.0.2.
 
@@ -48,7 +75,7 @@ Patch release. Adds command-history in-progress-line preservation to the termina
 
 ---
 
-## [v4.0.2] — 2026-06-22
+## [v4.0.2] — 2026-07-06
 
 Patch release. Fixes the pre-existing line-**wrap** cursor bug (flagged in v4.0.1's known issues) with a width-aware physical-row cursor model, plus two edge fixes from an adversarial audit and the `println!` cheatsheet gap. Browser-confirmed (wrap + resize spot-checks).
 
@@ -75,7 +102,7 @@ Patch release. Fixes the pre-existing line-**wrap** cursor bug (flagged in v4.0.
 
 ---
 
-## [v4.0.1] — 2026-06-22
+## [v4.0.1] — 2026-07-06
 
 Patch release. Fixes a critical multi-line cursor bug in the terminal's line editor (reported against v4.0), plus a minor caret jump on the Hint button. No content, question, or grading changes — the fixes are entirely in `TerminalApp`'s line-editing JavaScript (template body), so all four per-track content bundles are byte-identical to v4.0.
 

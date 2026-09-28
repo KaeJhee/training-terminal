@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Lint content and template
+        run: python3 build.py --check
+
+      - name: Rebuild and confirm committed files match
+        run: |
+          python3 build.py
+          git diff --exit-code -- index.html content-bundle.js
+
+      - name: Rust grader
+        run: |
+          python3 tests/qa_harness.py
+          python3 tests/rust_variants.py
+
+      - name: Secret scan
+        run: python3 tests/secret_scan.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pw" playwright@1.55.0
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+
+      - name: Grade SQL, Python, and JavaScript answer keys
+        run: |
+          python3 -m http.server 8765 >/tmp/http.log 2>&1 &
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            curl -sf -o /dev/null http://127.0.0.1:8765/ && break
+            sleep 0.3
+          done
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/pw/node_modules/playwright/index.js" \
+            node tests/answer_keys.mjs http://127.0.0.1:8765/

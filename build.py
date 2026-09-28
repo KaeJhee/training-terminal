@@ -404,9 +404,9 @@ def render_markdown(md_text: str, *, want_html: bool, file_label: str,
         section := header? (prose-line | code-block | blank)*
         code-block := one or more consecutive 4-space-indented lines.
 
-    The parser does not merge contiguous prose lines into one paragraph. Each
-    non-blank prose line maps to its own <p class="cs-prose"> in HTML and its own
-    '  ...\\r\\n' line in ANSI. Code lines collapse into one
+    Consecutive non-blank prose lines (no blank line between them) merge into
+    one paragraph: a single <p class="cs-prose"> in HTML and one ANSI line.
+    A blank line starts a new paragraph. Code lines collapse into one
     <pre class="cs-code"><code>...</code></pre> block per consecutive run.
 
     Inline tags can span multiple source lines (v3.8b infra fix #1). On every
@@ -437,6 +437,7 @@ def render_markdown(md_text: str, *, want_html: bool, file_label: str,
             section_open = False
 
     code_html_lines: list[str] = []
+    prose_buf: list[tuple[int, str]] = []
 
     def flush_code() -> None:
         nonlocal code_html_lines
@@ -447,6 +448,28 @@ def render_markdown(md_text: str, *, want_html: bool, file_label: str,
                                + "\n".join(code_html_lines)
                                + '</code></pre>')
         code_html_lines = []
+
+    def flush_prose() -> None:
+        """Merge consecutive prose lines into one paragraph."""
+        nonlocal prose_buf
+        if not prose_buf:
+            return
+        line_num = prose_buf[0][0]
+        payload = " ".join(part for _, part in prose_buf)
+        prose_buf = []
+        if want_html and not section_open:
+            open_section()
+        line_start_open = stack.open_codes_ansi()
+        line_render = render_inline(
+            payload, stack, errors=errors,
+            file_label=file_label, line_num=line_num,
+        )
+        line_end_close = stack.close_codes_ansi()
+        ansi_chunks.append(
+            "  " + line_start_open + line_render.ansi + line_end_close + "\r\n"
+        )
+        if want_html:
+            html_chunks.append('<p class="cs-prose">' + line_render.html + '</p>')
 
     def emit_ansi_line(indent: str, body_ansi: str) -> None:
         """Emit one ANSI line: re-open any across-line tags at start, close them at end.
@@ -460,6 +483,7 @@ def render_markdown(md_text: str, *, want_html: bool, file_label: str,
         kind, payload = _classify(raw_line)
 
         if kind == "header":
+            flush_prose()
             flush_code()
             close_section()
             if stack.depth:
@@ -479,11 +503,13 @@ def render_markdown(md_text: str, *, want_html: bool, file_label: str,
             continue
 
         if kind == "blank":
+            flush_prose()
             flush_code()
             ansi_chunks.append("\r\n")
             continue
 
         if kind == "code":
+            flush_prose()
             if want_html and not section_open:
                 open_section()
             # Capture stack state at line start so we can re-open on this line.
@@ -500,22 +526,11 @@ def render_markdown(md_text: str, *, want_html: bool, file_label: str,
                 code_html_lines.append(line_render.html)
             continue
 
-        # kind == "prose"
+        # kind == "prose" — buffer until a blank line, header, or code block.
         flush_code()
-        if want_html and not section_open:
-            open_section()
-        line_start_open = stack.open_codes_ansi()
-        line_render = render_inline(
-            payload, stack, errors=errors,
-            file_label=file_label, line_num=idx,
-        )
-        line_end_close = stack.close_codes_ansi()
-        ansi_chunks.append(
-            "  " + line_start_open + line_render.ansi + line_end_close + "\r\n"
-        )
-        if want_html:
-            html_chunks.append('<p class="cs-prose">' + line_render.html + '</p>')
+        prose_buf.append((idx, payload))
 
+    flush_prose()
     flush_code()
     close_section()
 
@@ -1032,7 +1047,12 @@ def build(repo_root: Path, *, check_only: bool) -> int:
     # Serialize bundle. ensure_ascii so the embedded JSON only uses ASCII (matches
     # the v3.8a style which used \uNNNN escapes for ANSI).
     bundle_json = json.dumps(bundle, ensure_ascii=True, separators=(",", ":"))
-    output = template_text.replace(PLACEHOLDER, bundle_json)
+    # Cheatsheet JSON is a separate file so the first prompt does not parse it.
+    # The template keeps the placeholder token; replace it with `null`.
+    bundle_path = repo_root / "content-bundle.js"
+    bundle_js = "window.CONTENT_BUNDLE = " + bundle_json + ";\n"
+    bundle_path.write_text(bundle_js, encoding="utf-8")
+    output = template_text.replace(PLACEHOLDER, "external")
     out_path.write_text(output, encoding="utf-8")
 
     md5 = hashlib.md5(output.encode("utf-8")).hexdigest()
@@ -1052,9 +1072,11 @@ def build(repo_root: Path, *, check_only: bool) -> int:
                      for v in [bundle["rust"]["cheatsheet"]["ansi"],
                                *bundle["rust"]["tiers"].values(),
                                *(s for arr in bundle["rust"]["examples"].values() for s in arr)])
+    bundle_md5 = hashlib.md5(bundle_js.encode("utf-8")).hexdigest()
     print(f"Built {out_path}")
     print(f"  md5:        {md5}")
     print(f"  size:       {len(output):,} bytes")
+    print(f"  bundle:     {bundle_path.name} md5 {bundle_md5} ({len(bundle_js):,} bytes)")
     print(f"  sql words:  ~{sql_words}")
     print(f"  py words:   ~{py_words}")
     print(f"  js words:   ~{js_words}")
