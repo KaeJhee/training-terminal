@@ -27,17 +27,186 @@ from pathlib import Path
 # ============================================================
 
 WORD_RE = re.compile(r"[A-Za-z0-9_']")
+IDENT_RE = re.compile(r"[A-Za-z_]")
+IDENT_CONT_RE = re.compile(r"[A-Za-z0-9_]")
 
 
-def normalize(s):
-    """Pass 1: identify string/char literal ranges. Pass 2: emit char-by-char,
-    preserving literal interiors and collapsing/dropping whitespace outside
-    literals per the locked design. Lifetime apostrophes ('a, 'static) are
-    part of the surrounding token, not a literal delimiter.
+def _copy_string(s, i):
+    """Copy a double-quoted string starting at i. Returns (text, new_index)."""
+    n = len(s)
+    j = i + 1
+    while j < n and s[j] != '"':
+        if s[j] == '\\' and j + 1 < n:
+            j += 2
+        else:
+            j += 1
+    if j < n:
+        j += 1
+    return s[i:j], j
+
+
+def _copy_raw_string(s, i):
+    """Copy a raw string r\"...\" or r#\"...\"# starting at i, if one is there.
+    Returns (text, new_index) or None."""
+    n = len(s)
+    if i >= n or s[i] != 'r':
+        return None
+    hashes = 0
+    j = i + 1
+    while j < n and s[j] == '#':
+        hashes += 1
+        j += 1
+    if j >= n or s[j] != '"':
+        return None
+    j += 1
+    closer = '"' + ('#' * hashes)
+    end = s.find(closer, j)
+    if end < 0:
+        return s[i:], n
+    end += len(closer)
+    return s[i:end], end
+
+
+def strip_comments(s):
+    """Remove // and /* */ comments outside string and char literals.
+    A space replaces a block comment so adjacent tokens do not glue together.
     """
     if s is None:
         return ''
     s = str(s)
+    n = len(s)
+    out = []
+    i = 0
+    while i < n:
+        c = s[i]
+        raw = _copy_raw_string(s, i)
+        if raw is not None and (i == 0 or not IDENT_CONT_RE.match(s[i - 1])):
+            out.append(raw[0])
+            i = raw[1]
+            continue
+        if c == '"':
+            text, i = _copy_string(s, i)
+            out.append(text)
+            continue
+        if c == "'":
+            # Char literal 'x' or '\\n'. Lifetimes stay as a single apostrophe.
+            if i + 3 < n and s[i + 1] == '\\' and s[i + 3] == "'":
+                out.append(s[i:i + 4])
+                i += 4
+                continue
+            if i + 2 < n and s[i + 1] != "'" and s[i + 1] != '\\' and s[i + 2] == "'":
+                out.append(s[i:i + 3])
+                i += 3
+                continue
+            out.append(c)
+            i += 1
+            continue
+        if c == '/' and i + 1 < n and s[i + 1] == '/':
+            i += 2
+            while i < n and s[i] != '\n':
+                i += 1
+            continue
+        if c == '/' and i + 1 < n and s[i + 1] == '*':
+            i += 2
+            while i + 1 < n and not (s[i] == '*' and s[i + 1] == '/'):
+                i += 1
+            if i + 1 < n:
+                i += 2
+            out.append(' ')
+            continue
+        out.append(c)
+        i += 1
+    return ''.join(out)
+
+
+def _scan_type(s, i):
+    """If s[i:] starts a type, return the index just past it. Else return i."""
+    n = len(s)
+    start = i
+
+    def ident():
+        nonlocal i
+        if i >= n or not IDENT_RE.match(s[i]):
+            return False
+        i += 1
+        while i < n and IDENT_CONT_RE.match(s[i]):
+            i += 1
+        return True
+
+    if i < n and s[i] == '&':
+        i += 1
+        if s.startswith('mut', i) and (i + 3 >= n or not IDENT_CONT_RE.match(s[i + 3])):
+            i += 3
+        if i < n and s[i] == "'":
+            i += 1
+            while i < n and IDENT_CONT_RE.match(s[i]):
+                i += 1
+    if not ident():
+        return start
+    while s.startswith('::', i):
+        i += 2
+        if not ident():
+            break
+    if i < n and s[i] == '<':
+        depth = 0
+        while i < n:
+            if s[i] == '<':
+                depth += 1
+                i += 1
+            elif s[i] == '>':
+                depth -= 1
+                i += 1
+                if depth == 0:
+                    break
+            elif s[i] == '"':
+                return start
+            else:
+                i += 1
+        if depth != 0:
+            return start
+    return i if i > start else start
+
+
+def strip_type_ascriptions(s):
+    """Drop `: Type` ascriptions outside strings. `::` paths are left alone.
+    Used only as an extra accept path so `let x: bool = true;` matches
+    `let x = true;`. Required-token checks still see the original text.
+    """
+    if not s:
+        return ''
+    n = len(s)
+    out = []
+    i = 0
+    while i < n:
+        c = s[i]
+        if c == '"':
+            text, i = _copy_string(s, i)
+            out.append(text)
+            continue
+        if c == "'" and i + 2 < n and s[i + 2] == "'":
+            out.append(s[i:i + 3])
+            i += 3
+            continue
+        if c == ':' and (i + 1 >= n or s[i + 1] != ':') and (i == 0 or s[i - 1] != ':'):
+            end = _scan_type(s, i + 1)
+            if end > i + 1:
+                i = end
+                continue
+        out.append(c)
+        i += 1
+    return ''.join(out)
+
+
+def normalize(s):
+    """Strip comments, then pass 1: identify string/char literal ranges.
+    Pass 2: emit char-by-char, preserving literal interiors and
+    collapsing/dropping whitespace outside literals per the locked design.
+    Lifetime apostrophes ('a, 'static) are part of the surrounding token,
+    not a literal delimiter.
+    """
+    if s is None:
+        return ''
+    s = strip_comments(str(s))
     n = len(s)
     literals = []
     i = 0
@@ -175,6 +344,14 @@ def grade_pattern(user_code, question):
     reverse_map = build_reverse_alt_map(a.get('alternatives') or {})
     user_sub = apply_alternatives(user_norm, reverse_map)
     if user_sub == canon_norm:
+        return {'ok': True}
+    # Optional type ascriptions (`let x: bool = true;`) match a canon that
+    # leaves the type to inference. Required tokens were already checked on
+    # the original normalized text, so a canon that demands `: f64` still
+    # rejects a submission that omits it.
+    # Strip ascriptions on the user side only. A canon that writes `: String`
+    # still rejects a submission that leaves the type off.
+    if strip_type_ascriptions(user_sub) == canon_norm:
         return {'ok': True}
 
     return {'ok': False, 'detail': grammar_lite(user_sub, canon_norm, user_code, a, tags)}

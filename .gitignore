@@ -21,3 +21,6 @@ src.zip
 
 # Agent scratch
 .work/
+.claude/
+__pycache__/
+*.pyc
