@@ -2,8 +2,11 @@
 
 Measured 28 September 2026. The "before" column is the live site
 (`https://kaejhee.github.io/training-terminal/`, v4.0.4). The "after"
-column is this branch, served the same way GitHub Pages does: static
-files, no server app.
+column is this branch, served as static files the way GitHub Pages does.
+
+Everything here is $0. GitHub Pages for a public repo does not need a
+credit card. No paid host, no paid tier, and no account with a card on
+file was added.
 
 Throttled rows use Chrome with an 80 ms round trip and a 1.6 Mbit/s
 download cap, so the times are comparable. Unthrottled "after" times are
@@ -31,31 +34,67 @@ Same throttle on both.
 | Grade one SQL answer (engine already up) | — | 7 ms |
 | Grade one Python answer (runtime already up) | — | 12 ms |
 
-## What changed in the page, and why
+## Free speed options
 
-- **Python loads only when that track starts.** This is the large cut: about 5 MB and the 30 s throttled wait leave the first screen.
-- **xterm, sql.js, and the fonts are files in the repo.** A blocked CDN no longer leaves a blank terminal. SQL does not wait on cdnjs.
-- **The lesson bundle is a separate file, fetched after the prompt.** `index.html` dropped from about 518 KB to 325 KB.
-- **SQL wasm is not preloaded.** Preloading it competed with xterm and made the throttled prompt slower (5.9 s). Without the preload the prompt was 3.6 s in the same test.
-- **A service worker caches same-origin files and jsDelivr.** The second visit rendered in 55 ms, with the heavy files served from cache. HTML stays network-first so a new deploy is not stuck behind an old page.
+Hosting stays on GitHub Pages. A "gain" is either a measurement from the
+runs above or a stated estimate. Nothing in the skipped list was left out
+because it costs money. They were slower, too small to notice, or they
+would put a card on file.
 
-xterm 5.5's published `xterm.min.js` is the same size as the file we vendor (about 289 KB). There was no smaller build to switch to. GitHub Pages will gzip it to about 67 KB.
+| Option | Gain | Decision |
+|---|---|---|
+| Lazy-load the Python engine | Removes 5.38 MB from boot, and the 30.6 s throttled wait, for anyone who does not open Python. | **Implemented.** Pyodide loads on `start python`. |
+| Self-host xterm, sql.js, and the fonts | The terminal still paints when jsDelivr is blocked. SQL ready in 4.6 s throttled, versus 7.0 s on the live site while Pyodide was sharing the pipe. | **Implemented.** Files live in `vendor/`. |
+| Split the lesson bundle out of `index.html` | Shell went from about 518 KB to 325 KB (gzip about 77 KB). The 204 KB bundle (gzip about 47 KB) loads after the prompt. | **Implemented.** `content-bundle.js`. |
+| Rely on GitHub Pages gzip | xterm 289 KB gzips to about 67 KB. SQL wasm 658 KB gzips to 322 KB. The shell gzips to about 77 KB. | **Already how Pages works.** No extra tool, no cost. |
+| Service worker for repeat visits | Second visit: prompt in 55 ms. Heavy files report `transferSize` 0. | **Implemented.** `sw.js`. HTML is network-first so a new deploy is not stuck. |
+| Prewarm SQL after first paint | The prompt does not wait on wasm compile. In the throttled test SQL was ready about 1 s after the prompt (4.6 s wall). | **Implemented.** `requestIdleCallback`, then `sql.init()`. |
+| Preload sql wasm, xterm, and the lesson bundle | Throttled prompt was **5.9 s with the preloads and 3.6 s without.** They competed with the files the prompt needs. | **Skipped.** Measured slower. |
+| Prewarm Python in the background after first paint | Puts the 5.38 MB download back on every visitor. That is the 30.6 s throttled cost, even for people who never open Python. | **Skipped.** It undoes the lazy-load win. |
+| Ship the published `xterm.min.js` | The file on jsDelivr is the same size as the one we vendor (about 289 KB). Pages gzip is what shrinks it. | **Skipped.** No smaller build exists. |
+| Brotli, or a compressor in the build | GitHub Pages gzips the response. It will not serve a hand-rolled `.br` file as `index.html`. | **Skipped.** Would not change the bytes on the wire. |
+| Split the question bank out of the shell | The shell already gzips to about 77 KB. A second request costs about one round trip (80 ms in the throttle) and adds a new way for the page to fail. | **Skipped.** No measured first-screen win. |
+| Keep sql.js 1.10.3 for a smaller wasm | Old CDN wasm was 277 KB. 1.14.2 is 658 KB raw / 322 KB gzip. On the throttle that is a fraction of a second, and SQL is still faster than the live site. | **Skipped.** The review asked for the library update, and the SQL answer keys pass on 1.14.2. |
+| Preconnect to jsDelivr when the Python button is hovered | About one round trip, ~80 ms, off a Python start. The 2.6 MB wasm transfer dominates the 1.2 s unthrottled init. | **Skipped.** Too small to notice next to the download. |
+| Minify the page script inside `build.py` | Gzip already takes the shell to about 77 KB. A minifier might save tens of KB more and would be a new fragile build step. | **Skipped.** Not a user-visible wait. |
+| Move the static host to Vercel or Cloudflare Pages | Not measured as faster than GitHub Pages plus the service worker. | **Skipped.** This PR stays on GitHub Pages, which is $0 and needs no card. |
 
-## Would a backend make this faster?
+## Free-tier backends that were considered and not added
 
-No, not in a way that is worth leaving GitHub Pages.
+Grading is already local: 7 ms for a warm SQL answer, 12 ms for a warm
+Python answer. A function call adds a network round trip, so it makes
+those answers slower. The only wait a server could remove is the first
+Python download (5.38 MB, 1.2 s on a fast link, about 30 s on the
+throttle). Running learner code to avoid that download is a bad fit for
+a free function, and it would mean leaving GitHub Pages.
 
-Grading is already local. A warm SQL answer is 7 ms and a warm Python answer is 12 ms. A serverless function would add a network round trip to every one of those, and it would be slower.
+Neither option is in this PR.
 
-The only wait a server could remove is the first Python download (5.38 MB, 1.2 s on a fast link, tens of seconds on a slow one). That means running strangers' Python on a server. It costs money any time someone holds a loop open, it is an untrusted-code problem, and it means the site is no longer a static GitHub Pages project. SQL, JavaScript, and Rust would not get faster.
+### Vercel Hobby
 
-A backend would help one thing that is not speed: progress does not sync across devices today. If that becomes the goal, a small function that stores the JSON export (the same object `localStorage` already holds) is enough. It should not execute code.
+Published limits (https://vercel.com/docs/plans/hobby, read 28 September 2026):
 
-**Recommendation:** keep hosting on GitHub Pages. Do not add a server to chase UI speed.
+- $0, and signing up for Hobby does not require a card.
+- Included each month: 100 GB fast data transfer, 1,000,000 edge requests, 1,000,000 function invocations, 4 CPU-hours, 360 GB-hours of provisioned memory. Function max duration 300 seconds.
+- Over the cap, the feature pauses until 30 days have passed. Hobby itself does not have an overage bill.
+- Fair use: **non-commercial, personal use only.**
 
-### If progress sync is wanted later
+Charge risk: upgrading to Pro, or starting the Pro trial, asks for a card. Pro is $20 per developer seat, and a team with a card can turn on on-demand usage that bills past the included credit. Kris already serves economic.ghoststrategies.io from Vercel. Putting this site on that same team is how a card already on file would get charged. Hobby is also the wrong terms for a public site tied to an RIA, because the plan is personal and non-commercial.
 
-- `POST /api/progress` with the exported JSON, after the same shape check the page already uses (`completed` object, `activity` array).
-- Auth is the whole design. A private gist, or a logged-in store Kris already has for another site, avoids inventing accounts here.
-- The page stays static. The function is a blob store, not a Python runner.
-- Cost stays near zero if it only writes a few kilobytes of JSON.
+A Python grader on a Hobby function is also how a visitor's infinite loop spends the 4 CPU-hour cap and pauses the project. That is not a speedup.
+
+### Cloudflare Workers free
+
+Published limits (https://developers.cloudflare.com/workers/platform/pricing/, updated 7 July 2026):
+
+- $0. The free plan does not require a credit card. Going over the cap returns an error. It does not auto-charge.
+- 100,000 requests per day. 10 ms of CPU time per invocation. 128 MB memory.
+- The paid Workers plan starts at $5 per month, then $0.30 per extra million requests and $0.02 per extra million CPU-milliseconds. That plan is what puts a bill on the account.
+
+10 ms of CPU cannot start Pyodide or grade a real Python or SQL answer. Static assets on Workers are not the reason to move: GitHub Pages already serves those for $0.
+
+### Progress across devices
+
+That is not a speed feature. `localStorage` is $0 and needs no account. A sync service is out of this PR. If it is ever added, it has to stay on a free store with no card attached. Do not hang it off the Vercel team that already hosts another site.
+
+**Recommendation:** keep the site on GitHub Pages. The static changes above are the speedup. Do not add a backend, a paid tier, or any account that asks for a credit card.
